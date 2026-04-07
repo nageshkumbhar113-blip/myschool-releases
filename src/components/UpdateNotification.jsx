@@ -5,8 +5,9 @@ const UpdateNotification = () => {
   const [progress, setProgress] = useState(0);
   const [version, setVersion] = useState('');
 
+  const api = window.electronAPI ?? null;
+
   useEffect(() => {
-    const api = window.electronAPI;
     if (!api) return;
 
     const unsubAvailable = typeof api.onUpdateAvailable === 'function'
