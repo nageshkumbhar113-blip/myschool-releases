@@ -1,0 +1,84 @@
+/**
+ * print.css
+ *
+ * Applied during window.print() for DocumentRenderer-based documents.
+ * Import this in the component that wraps DocumentRenderer for printing.
+ *
+ * Strategy:
+ *   - Hide everything on the page
+ *   - Show only .doc-print-root
+ *   - The DocumentRenderer rendered in mode="print" fills the A4 page exactly
+ */
+
+@media print {
+  @page {
+    size: auto;
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  /*
+   * Hide everything via visibility instead of display.
+   * The printable root lives inside the normal React tree, so hiding all
+   * body children with display:none would also hide its parent and produce
+   * a blank print/PDF page.
+   */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Show only the printable document root and its contents */
+  .doc-print-root,
+  .doc-print-root * {
+    visibility: visible !important;
+  }
+
+  .doc-print-root {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    width: var(--print-page-width, 210mm) !important;
+    min-height: var(--print-page-height, 297mm) !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    z-index: 2147483647 !important;
+  }
+
+  /* Suppress any elements marked no-print */
+  .no-print,
+  .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /*
+   * The page-div rendered by LCDocumentLayout has overflow:hidden inline.
+   * When body content is tall, the footer gets pushed beyond the page bounds
+   * and clipped. Override to visible so footer (stamp + signatures) prints.
+   */
+  .doc-print-root > div {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /*
+   * The inner flex column inside the page-div must also not clip the footer.
+   */
+  .doc-print-root > div > div {
+    overflow: visible !important;
+  }
+}
+
+/* On screen the print root is invisible — only shown by @media print */
+.doc-print-root {
+  display: none;
+}

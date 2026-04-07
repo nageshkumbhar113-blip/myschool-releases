@@ -1,0 +1,50 @@
+﻿import { create } from 'zustand'
+import schoolDataService from '../services/schoolDataService'
+
+const useFieldStore = create((set) => ({
+  fields: [],
+  loading: false,
+  error: null,
+
+  loadFields: async (instituteId) => {
+    set({ loading: true, error: null })
+    try {
+      const rows = await schoolDataService.fields.list(instituteId)
+      set({ fields: rows, loading: false })
+    } catch (err) {
+      set({ error: err.message, loading: false })
+    }
+  },
+
+  addField: async (fieldDef) => {
+    const record = await schoolDataService.fields.create(fieldDef)
+    set((state) => ({
+      fields: [...state.fields, record].sort((a, b) => (a.meta?.order ?? 0) - (b.meta?.order ?? 0)),
+    }))
+    return record
+  },
+
+  updateField: async (id, changes) => {
+    const after = await schoolDataService.fields.update(id, changes)
+    set((state) => ({
+      fields: state.fields.map((field) => (field.id === id ? after : field)).sort((a, b) => (a.meta?.order ?? 0) - (b.meta?.order ?? 0)),
+    }))
+    return after
+  },
+
+  deleteField: async (id) => {
+    await schoolDataService.fields.delete(id)
+    set((state) => ({ fields: state.fields.filter((field) => field.id !== id) }))
+  },
+
+  reorderFields: async (reordered) => {
+    set({ fields: reordered })
+    const instituteId = reordered[0]?.instituteId || null
+    if (!instituteId) return reordered
+    const persisted = await schoolDataService.fields.reorder(instituteId, reordered)
+    set({ fields: persisted })
+    return persisted
+  },
+}))
+
+export default useFieldStore

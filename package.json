@@ -1,0 +1,48 @@
+{
+  "name": "my-school",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "main": "electron/school/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3",
+    "test:license": "node scripts/license-system-test.mjs",
+    "smoke:preflight": "node scripts/smoke-preflight.mjs",
+    "icons:electron": "node scripts/generate-electron-icons.cjs",
+    "electron:school": "node scripts/run-electron.cjs school",
+    "electron:admin": "node scripts/run-electron.cjs admin",
+    "build:school": "npm run build && electron-builder --config school.config.cjs",
+    "build:admin": "npm run build && electron-builder --config admin.config.cjs",
+    "build:all": "npm run build && electron-builder --config school.config.cjs && electron-builder --config admin.config.cjs",
+    "test:school": "npm run build && node scripts/run-electron.cjs school --smoke-test",
+    "test:admin": "npm run build && node scripts/run-electron.cjs admin --smoke-test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "clsx": "^2.1.0",
+    "dexie": "^3.2.4",
+    "electron-updater": "^6.8.3",
+    "lucide-react": "^0.344.0",
+    "pdfmake": "^0.3.7",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.51.0",
+    "react-router-dom": "^6.22.0",
+    "xlsx": "^0.18.5",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.18",
+    "electron": "^41.1.1",
+    "electron-builder": "^26.8.1",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "vite": "^5.1.4",
+    "vite-plugin-pwa": "^0.19.2"
+  }
+}
