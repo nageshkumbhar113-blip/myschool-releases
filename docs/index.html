@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MY School App — Download</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4ff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      color: #1e293b;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(99,102,241,0.13);
+      max-width: 520px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      padding: 36px 36px 28px;
+      text-align: center;
+      color: #fff;
+    }
+
+    .header .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .header h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .header p {
+      font-size: 14px;
+      opacity: 0.85;
+      margin-top: 4px;
+    }
+
+    .body {
+      padding: 32px 36px;
+    }
+
+    .version-box {
+      background: #f8f9ff;
+      border: 1.5px solid #e0e7ff;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .version-box .item label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #6b7280;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .version-box .item span {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .version-box .item span.badge {
+      background: #eef2ff;
+      color: #4f46e5;
+      padding: 2px 10px;
+      border-radius: 99px;
+      font-size: 14px;
+    }
+
+    #download-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-bottom: 24px;
+    }
+
+    #download-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+    #download-btn:active { transform: translateY(0); }
+    #download-btn.disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .steps {
+      margin-bottom: 24px;
+    }
+
+    .steps h3 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #6b7280;
+      margin-bottom: 12px;
+    }
+
+    .steps ol {
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .steps ol li {
+      font-size: 14px;
+      color: #374151;
+      line-height: 1.5;
+    }
+
+    .note {
+      background: #f0fdf4;
+      border: 1.5px solid #bbf7d0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #166534;
+      line-height: 1.5;
+    }
+
+    .note strong { font-weight: 600; }
+
+    .sysreq {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #94a3b8;
+      text-align: center;
+    }
+
+    .error-box {
+      background: #fff1f2;
+      border: 1.5px solid #fecdd3;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #9f1239;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .footer {
+      text-align: center;
+      padding: 16px;
+      font-size: 12px;
+      color: #94a3b8;
+      border-top: 1px solid #f1f5f9;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="icon">🏫</div>
+      <h1>MY School App</h1>
+      <p>Pradnya English School, Balinge</p>
+    </div>
+
+    <div class="body">
+      <div id="error-box" class="error-box">
+        ⚠️ Version माहिती मिळाली नाही. खाली Download करा बटण वापरा.
+      </div>
+
+      <div class="version-box">
+        <div class="item">
+          <label>Latest Version</label>
+          <span id="version" class="badge">Loading...</span>
+        </div>
+        <div class="item">
+          <label>Release Date</label>
+          <span id="date">—</span>
+        </div>
+        <div class="item">
+          <label>File Size</label>
+          <span id="size">—</span>
+        </div>
+        <div class="item">
+          <label>Platform</label>
+          <span>Windows 64-bit</span>
+        </div>
+      </div>
+
+      <a id="download-btn" class="disabled" href="#" download>
+        <span class="spinner" id="spinner"></span>
+        <span id="btn-text">Loading...</span>
+      </a>
+
+      <div class="steps">
+        <h3>Install कसे करावे</h3>
+        <ol>
+          <li>वरील बटण दाबून <strong>.exe</strong> file download करा</li>
+          <li>Download झालेल्या file वर <strong>double-click</strong> करा</li>
+          <li>Install करा — 2 मिनिटात होईल</li>
+        </ol>
+      </div>
+
+      <div class="note">
+        ✅ <strong>Data safe राहील.</strong> Update install केल्यावर सर्व students, fees आणि records जसेच्या तसे राहतील.
+      </div>
+
+      <p class="sysreq">Windows 10 / 11 &nbsp;•&nbsp; 64-bit &nbsp;•&nbsp; ~85 MB</p>
+    </div>
+
+    <div class="footer">
+      Powered by GitHub Releases &nbsp;•&nbsp; Page automatically updates on new release
+    </div>
+  </div>
+
+  <script>
+    const REPO = 'nageshkumbhar113-blip/myschool-releases'
+
+    function formatDate(iso) {
+      const d = new Date(iso)
+      return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    }
+
+    function formatSize(bytes) {
+      if (!bytes) return '—'
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+    }
+
+    async function loadRelease() {
+      try {
+        const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+          headers: { Accept: 'application/vnd.github+json' }
+        })
+        if (!res.ok) throw new Error('API error')
+        const data = await res.json()
+
+        const exeAsset = data.assets.find(a => a.name.endsWith('.exe'))
+        if (!exeAsset) throw new Error('No exe asset')
+
+        document.getElementById('version').textContent = data.tag_name
+        document.getElementById('date').textContent = formatDate(data.published_at)
+        document.getElementById('size').textContent = formatSize(exeAsset.size)
+
+        const btn = document.getElementById('download-btn')
+        btn.href = exeAsset.browser_download_url
+        btn.classList.remove('disabled')
+        btn.innerHTML = '⬇&nbsp; Download MY School App (.exe)'
+      } catch {
+        document.getElementById('error-box').style.display = 'block'
+        document.getElementById('version').textContent = 'v2.0.2'
+        document.getElementById('spinner').style.display = 'none'
+
+        const btn = document.getElementById('download-btn')
+        btn.href = `https://github.com/${REPO}/releases/latest/download/MY_School-App-Setup.exe`
+        btn.classList.remove('disabled')
+        btn.innerHTML = '⬇&nbsp; Download MY School App (.exe)'
+      }
+    }
+
+    loadRelease()
+  </script>
+</body>
+</html>
