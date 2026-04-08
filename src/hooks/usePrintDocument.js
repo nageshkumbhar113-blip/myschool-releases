@@ -15,7 +15,18 @@
 import { useCallback } from 'react'
 
 export default function usePrintDocument() {
-  const print = useCallback(() => {
+  const print = useCallback((pageSize = 'A4') => {
+    const size = pageSize === 'A3' ? 'A3' : 'A4'
+    const styleEl = document.createElement('style')
+    styleEl.id = 'dynamic-print-page-size'
+    styleEl.textContent = `@media print { @page { size: ${size} portrait; margin: 0; } }`
+    document.head.appendChild(styleEl)
+
+    const cleanup = () => styleEl.remove()
+    window.addEventListener('afterprint', cleanup, { once: true })
+    // fallback cleanup in case afterprint doesn't fire
+    setTimeout(cleanup, 5000)
+
     window.print()
   }, [])
 

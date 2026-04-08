@@ -55,7 +55,7 @@ export default function NewLCPreview({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={print}
+              onClick={() => print(template?.pageSize ?? 'A4')}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
             >
               <Printer className="w-4 h-4" />

@@ -42,7 +42,8 @@
   .doc-print-root {
     display: block !important;
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
     width: var(--print-page-width, 210mm) !important;
     min-height: var(--print-page-height, 297mm) !important;
     height: auto !important;
