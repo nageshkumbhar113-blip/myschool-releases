@@ -4,6 +4,7 @@ const UpdateNotification = () => {
   const [status, setStatus] = useState(null);
   const [progress, setProgress] = useState(0);
   const [version, setVersion] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const api = window.electronAPI ?? null;
 
@@ -36,11 +37,19 @@ const UpdateNotification = () => {
       })
       : null;
 
+    const unsubError = typeof api.onUpdateError === 'function'
+      ? api.onUpdateError((msg) => {
+        setErrorMsg(msg ?? 'Update download failed');
+        setStatus('error');
+      })
+      : null;
+
     return () => {
       if (typeof unsubAvailable === 'function') unsubAvailable();
       if (typeof unsubProgress === 'function') unsubProgress();
       if (typeof unsubDownloaded === 'function') unsubDownloaded();
       if (typeof unsubNotAvailable === 'function') unsubNotAvailable();
+      if (typeof unsubError === 'function') unsubError();
     };
   }, []);
 
@@ -70,7 +79,7 @@ const UpdateNotification = () => {
           </p>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
-              onClick={() => api.downloadUpdate?.()}
+              onClick={() => { setStatus('downloading'); setProgress(0); api.downloadUpdate?.(); }}
               style={{
                 backgroundColor: 'white',
                 color: '#1e40af',
@@ -120,6 +129,46 @@ const UpdateNotification = () => {
             }} />
           </div>
           <p style={{ fontSize: '13px' }}>{progress}% complete</p>
+        </div>
+      )}
+
+      {status === 'error' && (
+        <div>
+          <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>
+            ❌ Update Failed
+          </p>
+          <p style={{ fontSize: '12px', marginBottom: '12px', opacity: 0.85 }}>
+            {errorMsg}
+          </p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => { setStatus('available'); setErrorMsg(''); }}
+              style={{
+                backgroundColor: 'white',
+                color: '#1e40af',
+                border: 'none',
+                padding: '6px 16px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => setStatus(null)}
+              style={{
+                backgroundColor: 'transparent',
+                color: 'white',
+                border: '1px solid white',
+                padding: '6px 16px',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              बंद करा
+            </button>
+          </div>
         </div>
       )}
 

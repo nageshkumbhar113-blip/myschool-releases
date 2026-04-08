@@ -212,7 +212,7 @@ function setupAutoUpdater() {
   autoUpdater.on('update-not-available', () => sendUpdateEvent('update-not-available', null))
   autoUpdater.on('update-downloaded', (info) => sendUpdateEvent('update-downloaded', info))
   autoUpdater.on('download-progress', (progress) => sendUpdateEvent('download-progress', progress))
-  autoUpdater.on('error', () => {})
+  autoUpdater.on('error', (err) => sendUpdateEvent('update-error', err?.message ?? 'Update failed'))
 }
 
 function lockDownWindow(win) {
