@@ -22,189 +22,151 @@
       background: #fff;
       border-radius: 20px;
       box-shadow: 0 8px 40px rgba(99,102,241,0.13);
-      max-width: 520px;
+      max-width: 540px;
       width: 100%;
       overflow: hidden;
     }
 
+    /* ── Header ── */
     .header {
       background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
       padding: 36px 36px 28px;
       text-align: center;
       color: #fff;
     }
+    .header .icon { font-size: 48px; margin-bottom: 10px; }
+    .header h1 { font-size: 26px; font-weight: 700; letter-spacing: 0.5px; }
+    .header p  { font-size: 13px; opacity: 0.8; margin-top: 5px; }
 
-    .header .icon {
-      font-size: 48px;
-      margin-bottom: 10px;
-    }
+    /* ── Body ── */
+    .body { padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; }
 
-    .header h1 {
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-    }
-
-    .header p {
-      font-size: 14px;
-      opacity: 0.85;
-      margin-top: 4px;
-    }
-
-    .body {
-      padding: 32px 36px;
-    }
-
+    /* ── Version box ── */
     .version-box {
       background: #f8f9ff;
       border: 1.5px solid #e0e7ff;
       border-radius: 12px;
-      padding: 18px 20px;
-      margin-bottom: 24px;
+      padding: 16px 20px;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
-
     .version-box .item label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: #6b7280;
-      display: block;
-      margin-bottom: 3px;
+      font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.8px; color: #6b7280; display: block; margin-bottom: 3px;
+    }
+    .version-box .item span        { font-size: 15px; font-weight: 600; color: #1e293b; }
+    .version-box .item span.badge  {
+      background: #eef2ff; color: #4f46e5;
+      padding: 2px 10px; border-radius: 99px; font-size: 14px;
     }
 
-    .version-box .item span {
-      font-size: 15px;
-      font-weight: 600;
-      color: #1e293b;
-    }
-
-    .version-box .item span.badge {
-      background: #eef2ff;
-      color: #4f46e5;
-      padding: 2px 10px;
-      border-radius: 99px;
-      font-size: 14px;
-    }
-
+    /* ── Download button ── */
     #download-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      width: 100%;
-      padding: 16px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 16px;
       background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      font-size: 17px;
-      font-weight: 700;
-      cursor: pointer;
+      color: #fff; border: none; border-radius: 12px;
+      font-size: 17px; font-weight: 700; cursor: pointer;
       text-decoration: none;
       transition: opacity 0.2s, transform 0.1s;
-      margin-bottom: 24px;
     }
-
-    #download-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+    #download-btn:hover  { opacity: 0.92; transform: translateY(-1px); }
     #download-btn:active { transform: translateY(0); }
-    #download-btn.disabled {
-      background: #cbd5e1;
-      cursor: not-allowed;
-      pointer-events: none;
+    #download-btn.disabled { background: #cbd5e1; cursor: not-allowed; pointer-events: none; }
+
+    /* ── Steps ── */
+    .section-title {
+      font-size: 12px; text-transform: uppercase;
+      letter-spacing: 0.9px; color: #6b7280; margin-bottom: 12px;
     }
 
-    .steps {
-      margin-bottom: 24px;
+    .steps-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
     }
-
-    .steps h3 {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: #6b7280;
-      margin-bottom: 12px;
+    .step-card {
+      background: #f8f9ff; border: 1.5px solid #e0e7ff;
+      border-radius: 10px; padding: 14px;
     }
-
-    .steps ol {
-      padding-left: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+    .step-card .num {
+      font-size: 11px; font-weight: 700; color: #4f46e5;
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px;
     }
+    .step-card .step-icon { font-size: 22px; margin-bottom: 6px; display: block; }
+    .step-card .step-label { font-size: 13px; font-weight: 600; color: #1e293b; }
+    .step-card .step-desc  { font-size: 12px; color: #6b7280; margin-top: 2px; }
 
-    .steps ol li {
-      font-size: 14px;
-      color: #374151;
-      line-height: 1.5;
+    /* ── Contact ── */
+    .contact-box {
+      background: #f0fdf4; border: 1.5px solid #bbf7d0;
+      border-radius: 12px; padding: 18px 20px;
     }
+    .contact-box .contact-name {
+      font-size: 15px; font-weight: 700; color: #166534; margin-bottom: 2px;
+    }
+    .contact-box .contact-phone {
+      font-size: 20px; font-weight: 800; color: #15803d; letter-spacing: 1px; margin-bottom: 14px;
+    }
+    .contact-btns { display: flex; gap: 10px; }
+    .contact-btns a {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 10px; border-radius: 9px;
+      font-size: 14px; font-weight: 600; text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .contact-btns a:hover { opacity: 0.88; }
+    .btn-whatsapp { background: #25d366; color: #fff; }
+    .btn-call     { background: #4f46e5; color: #fff; }
 
+    /* ── Note ── */
     .note {
-      background: #f0fdf4;
-      border: 1.5px solid #bbf7d0;
-      border-radius: 10px;
-      padding: 12px 16px;
-      font-size: 13px;
-      color: #166534;
-      line-height: 1.5;
+      background: #fffbeb; border: 1.5px solid #fde68a;
+      border-radius: 10px; padding: 12px 16px;
+      font-size: 13px; color: #92400e; line-height: 1.5;
     }
-
     .note strong { font-weight: 600; }
 
-    .sysreq {
-      margin-top: 16px;
-      font-size: 12px;
-      color: #94a3b8;
-      text-align: center;
-    }
+    .sysreq { font-size: 12px; color: #94a3b8; text-align: center; }
 
+    /* ── Error ── */
     .error-box {
-      background: #fff1f2;
-      border: 1.5px solid #fecdd3;
-      border-radius: 10px;
-      padding: 12px 16px;
-      font-size: 13px;
-      color: #9f1239;
-      margin-bottom: 16px;
-      display: none;
+      background: #fff1f2; border: 1.5px solid #fecdd3;
+      border-radius: 10px; padding: 12px 16px;
+      font-size: 13px; color: #9f1239; display: none;
     }
 
+    /* ── Spinner ── */
     .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(255,255,255,0.4);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── Footer ── */
     .footer {
-      text-align: center;
-      padding: 16px;
-      font-size: 12px;
-      color: #94a3b8;
+      text-align: center; padding: 14px;
+      font-size: 12px; color: #94a3b8;
       border-top: 1px solid #f1f5f9;
     }
   </style>
 </head>
 <body>
   <div class="card">
+
     <div class="header">
       <div class="icon">🏫</div>
       <h1>MY School App</h1>
-      <p>Pradnya English School, Balinge</p>
+      <p>School Management Software for Windows</p>
     </div>
 
     <div class="body">
+
       <div id="error-box" class="error-box">
         ⚠️ Version माहिती मिळाली नाही. खाली Download करा बटण वापरा.
       </div>
 
+      <!-- Version info -->
       <div class="version-box">
         <div class="item">
           <label>Latest Version</label>
@@ -224,25 +186,65 @@
         </div>
       </div>
 
+      <!-- Download button -->
       <a id="download-btn" class="disabled" href="#" download>
         <span class="spinner" id="spinner"></span>
         <span id="btn-text">Loading...</span>
       </a>
 
-      <div class="steps">
-        <h3>Install कसे करावे</h3>
-        <ol>
-          <li>वरील बटण दाबून <strong>.exe</strong> file download करा</li>
-          <li>Download झालेल्या file वर <strong>double-click</strong> करा</li>
-          <li>Install करा — 2 मिनिटात होईल</li>
-        </ol>
+      <!-- How to get app -->
+      <div>
+        <p class="section-title">App कसे मिळवावे — 4 Steps</p>
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="num">Step 1</div>
+            <span class="step-icon">⬇️</span>
+            <div class="step-label">Download करा</div>
+            <div class="step-desc">वरील बटण दाबून .exe file download करा</div>
+          </div>
+          <div class="step-card">
+            <div class="num">Step 2</div>
+            <span class="step-icon">💻</span>
+            <div class="step-label">Install करा</div>
+            <div class="step-desc">File वर double-click करा, install करा</div>
+          </div>
+          <div class="step-card">
+            <div class="num">Step 3</div>
+            <span class="step-icon">📱</span>
+            <div class="step-label">License साठी संपर्क करा</div>
+            <div class="step-desc">खालील number वर WhatsApp करा</div>
+          </div>
+          <div class="step-card">
+            <div class="num">Step 4</div>
+            <span class="step-icon">✅</span>
+            <div class="step-label">License Enter करा</div>
+            <div class="step-desc">License मिळाल्यावर app मध्ये enter करा — ready!</div>
+          </div>
+        </div>
       </div>
 
+      <!-- Contact -->
+      <div class="contact-box">
+        <p class="section-title" style="color:#166534;">License साठी संपर्क</p>
+        <div class="contact-name">Mr. Nagesh Kumbhar Sir</div>
+        <div class="contact-phone">83904 84545</div>
+        <div class="contact-btns">
+          <a class="btn-whatsapp" href="https://wa.me/918390484545" target="_blank" rel="noopener">
+            💬 WhatsApp करा
+          </a>
+          <a class="btn-call" href="tel:8390484545">
+            📞 Call करा
+          </a>
+        </div>
+      </div>
+
+      <!-- Data safe note -->
       <div class="note">
         ✅ <strong>Data safe राहील.</strong> Update install केल्यावर सर्व students, fees आणि records जसेच्या तसे राहतील.
       </div>
 
       <p class="sysreq">Windows 10 / 11 &nbsp;•&nbsp; 64-bit &nbsp;•&nbsp; ~85 MB</p>
+
     </div>
 
     <div class="footer">
@@ -254,8 +256,9 @@
     const REPO = 'nageshkumbhar113-blip/myschool-releases'
 
     function formatDate(iso) {
-      const d = new Date(iso)
-      return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+      return new Date(iso).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'long', year: 'numeric'
+      })
     }
 
     function formatSize(bytes) {
@@ -265,9 +268,10 @@
 
     async function loadRelease() {
       try {
-        const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-          headers: { Accept: 'application/vnd.github+json' }
-        })
+        const res = await fetch(
+          `https://api.github.com/repos/${REPO}/releases/latest`,
+          { headers: { Accept: 'application/vnd.github+json' } }
+        )
         if (!res.ok) throw new Error('API error')
         const data = await res.json()
 
@@ -284,8 +288,7 @@
         btn.innerHTML = '⬇&nbsp; Download MY School App (.exe)'
       } catch {
         document.getElementById('error-box').style.display = 'block'
-        document.getElementById('version').textContent = 'v2.0.2'
-        document.getElementById('spinner').style.display = 'none'
+        document.getElementById('version').textContent = 'Latest'
 
         const btn = document.getElementById('download-btn')
         btn.href = `https://github.com/${REPO}/releases/latest/download/MY_School-App-Setup.exe`
