@@ -26,6 +26,14 @@ function mapInstitute(row) {
     subscriptionPlan: row.subscription_plan ?? 'basic',
     expiryDate: row.expiry_date ?? '',
     maxStudents: Number(row.max_students ?? 0) || 0,
+    address: row.address ?? '',
+    location: row.location ?? '',
+    phone: row.phone ?? '',
+    email: row.email ?? '',
+    principalName: row.principal_name ?? '',
+    paymentAmount: Number(row.payment_amount ?? 0) || 0,
+    paymentDate: row.payment_date ?? '',
+    paymentStatus: row.payment_status ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at ?? null,
@@ -207,13 +215,31 @@ function upsertInstitute(database, record) {
   const now = record.updatedAt || getNowIso()
   const createdAt = record.createdAt || now
   database.prepare(`
-    INSERT INTO institutes (id, name, subscription_plan, expiry_date, max_students, created_at, updated_at, deleted_at)
-    VALUES (@id, @name, @subscription_plan, @expiry_date, @max_students, @created_at, @updated_at, @deleted_at)
+    INSERT INTO institutes (
+      id, name, subscription_plan, expiry_date, max_students,
+      address, location, phone, email, principal_name,
+      payment_amount, payment_date, payment_status,
+      created_at, updated_at, deleted_at
+    )
+    VALUES (
+      @id, @name, @subscription_plan, @expiry_date, @max_students,
+      @address, @location, @phone, @email, @principal_name,
+      @payment_amount, @payment_date, @payment_status,
+      @created_at, @updated_at, @deleted_at
+    )
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
       subscription_plan = excluded.subscription_plan,
       expiry_date = excluded.expiry_date,
       max_students = excluded.max_students,
+      address = excluded.address,
+      location = excluded.location,
+      phone = excluded.phone,
+      email = excluded.email,
+      principal_name = excluded.principal_name,
+      payment_amount = excluded.payment_amount,
+      payment_date = excluded.payment_date,
+      payment_status = excluded.payment_status,
       created_at = excluded.created_at,
       updated_at = excluded.updated_at,
       deleted_at = excluded.deleted_at
@@ -223,6 +249,14 @@ function upsertInstitute(database, record) {
     subscription_plan: record.subscriptionPlan || 'basic',
     expiry_date: record.expiryDate || '',
     max_students: Number(record.maxStudents || 0) || 0,
+    address: record.address ?? '',
+    location: record.location ?? '',
+    phone: record.phone ?? '',
+    email: record.email ?? '',
+    principal_name: record.principalName ?? '',
+    payment_amount: Number(record.paymentAmount ?? 0) || 0,
+    payment_date: record.paymentDate ?? '',
+    payment_status: record.paymentStatus ?? '',
     created_at: createdAt,
     updated_at: now,
     deleted_at: record.deletedAt ?? null,

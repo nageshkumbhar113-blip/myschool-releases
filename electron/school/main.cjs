@@ -297,6 +297,7 @@ ipcMain.on('download-update', () => {
   autoUpdater.downloadUpdate().catch(() => {})
 })
 
+
 app.whenReady().then(async () => {
   if (isSmokeTest) smokeExit()
   setupAutoUpdater()

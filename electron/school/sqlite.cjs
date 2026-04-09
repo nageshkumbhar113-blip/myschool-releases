@@ -24,6 +24,14 @@ function ensureSchema(database) {
       subscription_plan TEXT,
       expiry_date TEXT,
       max_students INTEGER NOT NULL DEFAULT 0,
+      address TEXT,
+      location TEXT,
+      phone TEXT,
+      email TEXT,
+      principal_name TEXT,
+      payment_amount REAL,
+      payment_date TEXT,
+      payment_status TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       deleted_at TEXT
@@ -214,6 +222,18 @@ function ensureSchema(database) {
     CREATE INDEX IF NOT EXISTS idx_sessions_expires
       ON super_admin_sessions(expires_at);
   `)
+
+  // Additive migrations — safely add new columns to existing DBs.
+  // SQLite throws if a column already exists, so each is wrapped in try/catch.
+  const addCol = (sql) => { try { database.exec(sql) } catch {} }
+  addCol('ALTER TABLE institutes ADD COLUMN address TEXT')
+  addCol('ALTER TABLE institutes ADD COLUMN location TEXT')
+  addCol('ALTER TABLE institutes ADD COLUMN phone TEXT')
+  addCol('ALTER TABLE institutes ADD COLUMN email TEXT')
+  addCol('ALTER TABLE institutes ADD COLUMN principal_name TEXT')
+  addCol('ALTER TABLE institutes ADD COLUMN payment_amount REAL')
+  addCol('ALTER TABLE institutes ADD COLUMN payment_date TEXT')
+  addCol('ALTER TABLE institutes ADD COLUMN payment_status TEXT')
 }
 
 function getDb() {

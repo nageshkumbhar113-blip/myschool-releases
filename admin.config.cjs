@@ -20,6 +20,10 @@ module.exports = {
   extraMetadata: {
     main: 'electron/admin/main.cjs',
   },
+  asarUnpack: [
+    '**/*.node',
+    'node_modules/better-sqlite3/**/*',
+  ],
   artifactName: 'MY_School-Admin-Setup.${ext}',
   win: {
     target: 'nsis',
