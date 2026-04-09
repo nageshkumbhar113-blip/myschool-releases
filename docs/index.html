@@ -3,657 +3,415 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="MY School App — Smart School Management System for Windows. Manage students, fees, LC, bonafide and more." />
+  <meta name="description" content="MY School App — Smart School Management System for Windows." />
   <title>MY School App — Smart School Management System</title>
   <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <style>
-    /* ── Reset & Variables ────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:          #06061a;
-      --bg2:         #0c0c24;
-      --card:        rgba(255,255,255,0.04);
-      --card-hover:  rgba(255,255,255,0.07);
-      --border:      rgba(255,255,255,0.07);
-      --border-h:    rgba(255,255,255,0.18);
-      --p1:          #6366f1;
-      --p2:          #8b5cf6;
-      --p3:          #a78bfa;
-      --glow:        rgba(99,102,241,0.4);
-      --accent:      #06b6d4;
-      --green:       #10b981;
-      --amber:       #f59e0b;
-      --text:        #e2e8f0;
-      --muted:       #94a3b8;
-      --dim:         #475569;
-      --r:           16px;
-      --r-sm:        10px;
-      --ease:        cubic-bezier(.4,0,.2,1);
+      --p1: #7c3aed; --p2: #6d28d9; --p3: #4f46e5;
+      --pink: #ec4899; --cyan: #06b6d4; --green: #10b981;
+      --amber: #f59e0b; --rose: #f43f5e;
+      --bg: #f5f3ff; --white: #ffffff;
+      --text: #1e1b4b; --muted: #6b7280; --dim: #9ca3af;
+      --border: #e5e7eb;
+      --r: 18px; --r-sm: 10px;
+      --ease: cubic-bezier(.4,0,.2,1);
+      --shadow: 0 8px 32px rgba(124,58,237,0.12);
+      --shadow-lg: 0 20px 60px rgba(124,58,237,0.18);
     }
-
     html { scroll-behavior: smooth; }
-
-    body {
-      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
-
+    body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; line-height: 1.6; }
     a { text-decoration: none; color: inherit; }
-
-    /* ── Scrollbar ───────────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 99px; }
 
-    /* ── Animated Background ─────────────────────────── */
-    .bg-canvas {
-      position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
-    }
-    .orb {
-      position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.18;
-      animation: float 12s ease-in-out infinite;
-    }
-    .orb-1 { width: 600px; height: 600px; background: #6366f1; top: -150px; left: -100px; animation-delay: 0s; }
-    .orb-2 { width: 500px; height: 500px; background: #8b5cf6; top: 40%; right: -120px; animation-delay: -4s; }
-    .orb-3 { width: 400px; height: 400px; background: #06b6d4; bottom: -100px; left: 30%; animation-delay: -8s; }
+    /* ── Gradient text ── */
+    .gt { background: linear-gradient(135deg, var(--p1), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gt2 { background: linear-gradient(135deg, var(--p3), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 
-    @keyframes float {
-      0%,100% { transform: translate(0,0) scale(1); }
-      33%      { transform: translate(30px,-30px) scale(1.05); }
-      66%      { transform: translate(-20px,20px) scale(0.95); }
-    }
+    /* ── Fade-up ── */
+    .fade-up { opacity: 0; transform: translateY(28px); transition: opacity .65s var(--ease), transform .65s var(--ease); }
+    .fade-up.visible { opacity: 1; transform: none; }
 
-    /* ── Navbar ──────────────────────────────────────── */
+    /* ── Container ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── NAVBAR ── */
     #nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      padding: 0 40px;
+      padding: 0 36px; height: 64px;
       display: flex; align-items: center; justify-content: space-between;
-      height: 64px;
-      transition: var(--ease) 0.3s;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(124,58,237,0.1);
+      box-shadow: 0 2px 20px rgba(124,58,237,0.06);
     }
-    #nav.scrolled {
-      background: rgba(6,6,26,0.75);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-logo {
-      display: flex; align-items: center; gap: 10px;
-      font-size: 18px; font-weight: 700; letter-spacing: -0.3px;
-    }
-    .nav-logo .logo-dot {
-      width: 30px; height: 30px; border-radius: 8px;
-      background: linear-gradient(135deg, var(--p1), var(--p2));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px;
-    }
-    .nav-links { display: flex; align-items: center; gap: 8px; }
-    .nav-links a {
-      padding: 7px 14px; border-radius: var(--r-sm);
-      font-size: 14px; color: var(--muted);
-      transition: color 0.2s;
-    }
-    .nav-links a:hover { color: var(--text); }
-    .nav-cta {
-      padding: 8px 20px;
-      background: linear-gradient(135deg, var(--p1), var(--p2));
-      border-radius: var(--r-sm);
-      font-size: 14px; font-weight: 600; color: #fff !important;
-      box-shadow: 0 0 20px var(--glow);
-      transition: opacity 0.2s, transform 0.2s !important;
-    }
-    .nav-cta:hover { opacity: 0.9; transform: translateY(-1px) !important; }
+    .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 800; color: var(--p1); }
+    .nav-icon { width: 32px; height: 32px; border-radius: 9px; background: linear-gradient(135deg, var(--p1), var(--pink)); display: flex; align-items: center; justify-content: center; font-size: 17px; }
+    .nav-links { display: flex; align-items: center; gap: 4px; }
+    .nav-links a { padding: 7px 14px; border-radius: 8px; font-size: 14px; color: var(--muted); transition: color .2s, background .2s; font-weight: 500; }
+    .nav-links a:hover { color: var(--p1); background: #f3f0ff; }
+    .nav-cta { background: linear-gradient(135deg, var(--p1), var(--pink)) !important; color: #fff !important; font-weight: 700 !important; box-shadow: 0 4px 16px rgba(124,58,237,0.3); transition: transform .2s, box-shadow .2s !important; }
+    .nav-cta:hover { transform: translateY(-2px) !important; box-shadow: 0 6px 24px rgba(124,58,237,0.4) !important; background: unset !important; }
 
-    /* ── Shared ──────────────────────────────────────── */
-    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
-    .section { padding: 100px 0; }
-    .section-label {
-      display: inline-flex; align-items: center; gap: 7px;
-      padding: 6px 14px; border-radius: 99px;
-      border: 1px solid var(--border-h);
-      background: var(--card);
-      font-size: 12px; font-weight: 600; letter-spacing: 1px;
-      text-transform: uppercase; color: var(--p3);
-      margin-bottom: 20px;
-    }
-    .section-title {
-      font-size: clamp(28px, 4vw, 42px);
-      font-weight: 800; letter-spacing: -1px; line-height: 1.15;
-      color: var(--text);
-    }
-    .section-sub {
-      font-size: 17px; color: var(--muted);
-      margin-top: 12px; max-width: 540px; line-height: 1.7;
-    }
-    .gradient-text {
-      background: linear-gradient(135deg, var(--p1) 0%, var(--p3) 50%, var(--accent) 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    /* Fade-in animation */
-    .fade-up {
-      opacity: 0; transform: translateY(32px);
-      transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
-    }
-    .fade-up.visible { opacity: 1; transform: translateY(0); }
-
-    /* ── Hero ────────────────────────────────────────── */
+    /* ── HERO ── */
     #hero {
       min-height: 100vh;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center;
-      padding: 120px 24px 80px;
-      position: relative; z-index: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 120px 24px 80px;
+      position: relative; overflow: hidden;
     }
+    /* Colourful background blobs */
+    .blob { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; }
+    .blob-1 { width: 500px; height: 500px; background: rgba(124,58,237,0.15); top: -100px; left: -120px; animation: bfloat 14s ease-in-out infinite; }
+    .blob-2 { width: 400px; height: 400px; background: rgba(236,72,153,0.12); top: 30%; right: -80px; animation: bfloat 11s ease-in-out infinite reverse; }
+    .blob-3 { width: 350px; height: 350px; background: rgba(6,182,212,0.10); bottom: 0; left: 25%; animation: bfloat 9s ease-in-out infinite 3s; }
+    .blob-4 { width: 300px; height: 300px; background: rgba(16,185,129,0.08); top: 20%; left: 10%; animation: bfloat 16s ease-in-out infinite 6s; }
+    @keyframes bfloat { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(25px,-25px) scale(1.04)} 66%{transform:translate(-15px,20px) scale(.97)} }
+
     .hero-badge {
       display: inline-flex; align-items: center; gap: 8px;
       padding: 8px 18px; border-radius: 99px;
-      border: 1px solid rgba(99,102,241,0.3);
-      background: rgba(99,102,241,0.08);
-      font-size: 13px; color: var(--p3);
-      margin-bottom: 32px;
-      animation: fadeDown 0.8s var(--ease) forwards;
+      background: linear-gradient(135deg, #ede9fe, #fce7f3);
+      border: 1.5px solid #c4b5fd;
+      font-size: 13px; font-weight: 600; color: var(--p1);
+      margin-bottom: 28px; position: relative; z-index: 1;
+      animation: fadeD .8s var(--ease) both;
     }
-    .hero-badge .dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 8px var(--green);
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%,100% { opacity:1; transform:scale(1); }
-      50%      { opacity:0.6; transform:scale(0.85); }
-    }
-    .hero-title {
-      font-size: clamp(40px, 7vw, 80px);
-      font-weight: 900; letter-spacing: -2.5px; line-height: 1.05;
-      margin-bottom: 12px;
-      animation: fadeDown 0.8s 0.1s var(--ease) both;
-    }
-    .hero-tagline {
-      font-size: clamp(18px, 2.5vw, 26px);
-      font-weight: 300; color: var(--muted);
-      letter-spacing: -0.5px; margin-bottom: 10px;
-      animation: fadeDown 0.8s 0.2s var(--ease) both;
-    }
-    .hero-marathi {
-      font-size: clamp(15px, 2vw, 20px);
-      color: var(--dim); margin-bottom: 44px;
-      animation: fadeDown 0.8s 0.3s var(--ease) both;
-    }
-    .hero-actions {
-      display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center;
-      animation: fadeDown 0.8s 0.4s var(--ease) both;
-    }
-    .btn-primary {
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pls 2s infinite; }
+    @keyframes pls { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+    .hero-title { font-size: clamp(44px, 8vw, 88px); font-weight: 900; letter-spacing: -3px; line-height: 1.02; margin-bottom: 14px; position: relative; z-index: 1; animation: fadeD .8s .1s var(--ease) both; }
+    .hero-tagline { font-size: clamp(18px, 2.5vw, 26px); color: var(--muted); font-weight: 400; margin-bottom: 8px; position: relative; z-index: 1; animation: fadeD .8s .2s var(--ease) both; }
+    .hero-mr { font-size: clamp(15px, 1.8vw, 19px); color: var(--dim); margin-bottom: 44px; position: relative; z-index: 1; animation: fadeD .8s .3s var(--ease) both; }
+    .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; position: relative; z-index: 1; animation: fadeD .8s .4s var(--ease) both; }
+    @keyframes fadeD { from{opacity:0;transform:translateY(-18px)} to{opacity:1;transform:none} }
+
+    .btn-main {
       display: inline-flex; align-items: center; gap: 9px;
-      padding: 16px 32px; border-radius: var(--r);
-      background: linear-gradient(135deg, var(--p1), var(--p2));
+      padding: 16px 34px; border-radius: var(--r);
+      background: linear-gradient(135deg, var(--p1) 0%, var(--pink) 100%);
       color: #fff; font-size: 16px; font-weight: 700;
-      box-shadow: 0 0 40px var(--glow);
-      transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), opacity 0.2s;
-      cursor: pointer; border: none; text-decoration: none;
+      box-shadow: 0 6px 32px rgba(124,58,237,0.35);
+      transition: transform .2s var(--ease), box-shadow .2s;
+      border: none; cursor: pointer;
     }
-    .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 0 60px var(--glow); }
-    .btn-primary:active { transform: translateY(0); }
-    .btn-primary.disabled { background: var(--dim); box-shadow: none; pointer-events: none; }
-
-    .btn-secondary {
-      display: inline-flex; align-items: center; gap: 8px;
+    .btn-main:hover { transform: translateY(-3px); box-shadow: 0 10px 40px rgba(124,58,237,0.45); }
+    .btn-main.disabled { background: #d1d5db; box-shadow: none; pointer-events: none; }
+    .btn-out {
+      display: inline-flex; align-items: center; gap: 9px;
       padding: 15px 28px; border-radius: var(--r);
-      border: 1px solid var(--border-h);
-      background: var(--card);
-      color: var(--text); font-size: 15px; font-weight: 600;
-      transition: background 0.2s, border-color 0.2s, transform 0.2s;
+      border: 2px solid #c4b5fd; background: #fff;
+      color: var(--p1); font-size: 15px; font-weight: 600;
+      transition: background .2s, border-color .2s, transform .2s;
     }
-    .btn-secondary:hover { background: var(--card-hover); border-color: var(--p1); transform: translateY(-2px); }
+    .btn-out:hover { background: #f5f3ff; border-color: var(--p1); transform: translateY(-2px); }
 
-    .version-pill {
-      display: inline-flex; align-items: center; gap: 6px;
-      margin-top: 24px;
-      padding: 7px 16px; border-radius: 99px;
-      border: 1px solid var(--border);
-      background: var(--card);
-      font-size: 13px; color: var(--muted);
-      animation: fadeDown 0.8s 0.5s var(--ease) both;
+    .vpill {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-top: 24px; padding: 8px 18px; border-radius: 99px;
+      background: #fff; border: 1.5px solid #e5e7eb;
+      font-size: 13px; color: var(--muted); position: relative; z-index: 1;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      animation: fadeD .8s .5s var(--ease) both;
     }
-    .version-pill span { color: var(--p3); font-weight: 600; }
+    .vpill b { color: var(--p1); }
 
-    @keyframes fadeDown {
-      from { opacity: 0; transform: translateY(-20px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Hero grid divider line */
-    .hero-divider {
-      width: 1px; height: 80px;
-      background: linear-gradient(to bottom, transparent, var(--border), transparent);
-      margin: 60px auto 0;
-    }
-
-    /* ── Stats Bar ───────────────────────────────────── */
-    .stats-bar {
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: rgba(255,255,255,0.02);
-      padding: 28px 0;
-      position: relative; z-index: 1;
-    }
-    .stats-inner {
-      display: flex; justify-content: center; align-items: center;
-      gap: 0; flex-wrap: wrap;
-    }
-    .stat-item {
-      text-align: center; padding: 0 48px;
-      border-right: 1px solid var(--border);
-    }
+    /* ── STATS ── */
+    .stats-bar { background: #fff; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 28px 0; }
+    .stats-inner { display: flex; justify-content: center; flex-wrap: wrap; }
+    .stat-item { text-align: center; padding: 0 52px; border-right: 1px solid var(--border); }
     .stat-item:last-child { border-right: none; }
-    .stat-num { font-size: 30px; font-weight: 800; letter-spacing: -1px; }
-    .stat-lbl { font-size: 13px; color: var(--muted); margin-top: 3px; }
+    .stat-n { font-size: 32px; font-weight: 900; }
+    .stat-l { font-size: 13px; color: var(--muted); margin-top: 2px; }
 
-    /* ── Features ────────────────────────────────────── */
-    #features { padding: 100px 0; }
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px; margin-top: 56px;
-    }
+    /* ── FEATURES ── */
+    #features { padding: 100px 0; background: #fff; }
+    .sec-label { display: inline-flex; align-items: center; gap: 7px; padding: 6px 16px; border-radius: 99px; background: #f5f3ff; border: 1.5px solid #c4b5fd; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--p1); margin-bottom: 16px; }
+    .sec-title { font-size: clamp(28px, 4vw, 44px); font-weight: 900; letter-spacing: -1.5px; line-height: 1.1; }
+    .sec-sub { font-size: 17px; color: var(--muted); margin-top: 10px; max-width: 500px; line-height: 1.7; }
+
+    .feat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 52px; }
     .feat-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      padding: 28px 24px;
-      transition: background 0.3s, border-color 0.3s, transform 0.3s var(--ease), box-shadow 0.3s;
+      border-radius: var(--r); padding: 28px 24px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      transition: transform .3s var(--ease), box-shadow .3s, border-color .3s;
       cursor: default;
     }
-    .feat-card:hover {
-      background: var(--card-hover);
-      border-color: var(--border-h);
-      transform: translateY(-6px);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-    }
-    .feat-icon {
-      width: 48px; height: 48px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 18px; font-size: 22px;
-    }
-    .feat-icon.indigo  { background: rgba(99,102,241,0.15); }
-    .feat-icon.purple  { background: rgba(139,92,246,0.15); }
-    .feat-icon.cyan    { background: rgba(6,182,212,0.15); }
-    .feat-icon.green   { background: rgba(16,185,129,0.15); }
-    .feat-icon.amber   { background: rgba(245,158,11,0.15); }
-    .feat-icon.rose    { background: rgba(244,63,94,0.15); }
-    .feat-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .feat-card p  { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .feat-card:hover { transform: translateY(-8px); box-shadow: var(--shadow-lg); border-color: #c4b5fd; }
+    .fic { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; font-size: 24px; }
+    .fic-v { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
+    .fic-g { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+    .fic-a { background: linear-gradient(135deg, #fef3c7, #fde68a); }
+    .fic-c { background: linear-gradient(135deg, #cffafe, #a5f3fc); }
+    .fic-p { background: linear-gradient(135deg, #fce7f3, #fbcfe8); }
+    .fic-r { background: linear-gradient(135deg, #fee2e2, #fecaca); }
+    .feat-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+    .feat-card p  { font-size: 14px; color: var(--muted); line-height: 1.65; }
 
-    /* ── App Preview ─────────────────────────────────── */
-    #preview { padding: 80px 0 100px; }
-    .preview-wrap {
-      margin-top: 52px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      overflow: hidden;
-      box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px var(--border);
-      background: #0d0d24;
-    }
-    /* Window chrome */
-    .window-bar {
-      background: #12122e;
-      padding: 12px 18px;
-      display: flex; align-items: center; gap: 12px;
-      border-bottom: 1px solid var(--border);
-    }
-    .wdot { width: 12px; height: 12px; border-radius: 50%; }
-    .wdot.r { background: #ff5f57; }
-    .wdot.y { background: #febc2e; }
-    .wdot.g { background: #28c840; }
-    .wtitle {
-      flex: 1; text-align: center;
-      font-size: 13px; color: var(--dim); font-weight: 500;
-    }
-    /* App UI */
+    /* ── PREVIEW ── */
+    #preview { padding: 80px 0 100px; background: var(--bg); }
+    .pw { margin-top: 48px; border-radius: 22px; overflow: hidden; border: 1.5px solid #e5e7eb; box-shadow: 0 30px 80px rgba(124,58,237,0.15); background: #fff; }
+    .wbar { background: #f9fafb; padding: 12px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+    .wd { width: 12px; height: 12px; border-radius: 50%; }
+    .wt { flex: 1; text-align: center; font-size: 13px; color: var(--dim); font-weight: 500; }
     .app-ui { display: flex; height: 420px; }
-    .sidebar {
-      width: 200px; flex-shrink: 0;
-      background: #0a0a20;
-      border-right: 1px solid var(--border);
-      padding: 16px 0;
-    }
-    .sidebar-logo {
-      display: flex; align-items: center; gap: 9px;
-      padding: 6px 18px 18px;
-      font-size: 14px; font-weight: 700; color: var(--text);
-      border-bottom: 1px solid var(--border); margin-bottom: 12px;
-    }
-    .sb-logo-dot {
-      width: 26px; height: 26px; border-radius: 7px;
-      background: linear-gradient(135deg, var(--p1), var(--p2));
-      display: flex; align-items: center; justify-content: center; font-size: 14px;
-    }
-    .sb-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 9px 18px; font-size: 13px; color: var(--muted);
-      border-radius: 8px; margin: 2px 8px;
-      cursor: pointer; transition: background 0.15s, color 0.15s;
-    }
-    .sb-item.active { background: rgba(99,102,241,0.12); color: var(--p3); }
-    .sb-item:hover:not(.active) { background: var(--card); color: var(--text); }
-    /* Main content */
-    .main-content { flex: 1; padding: 22px; overflow: hidden; }
-    .mc-header {
-      display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
-    }
-    .mc-title { font-size: 18px; font-weight: 700; }
-    .mc-btn {
-      padding: 8px 16px; border-radius: 8px;
-      background: linear-gradient(135deg, var(--p1), var(--p2));
-      font-size: 13px; font-weight: 600; color: #fff;
-    }
-    .stats-row { display: flex; gap: 12px; margin-bottom: 20px; }
-    .mini-stat {
-      flex: 1; background: var(--card); border: 1px solid var(--border);
-      border-radius: 10px; padding: 12px 16px;
-    }
-    .mini-stat .ms-val { font-size: 22px; font-weight: 800; }
-    .mini-stat .ms-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .student-table { width: 100%; border-collapse: collapse; }
-    .student-table th {
-      font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
-      color: var(--dim); text-align: left; padding: 8px 10px;
-      border-bottom: 1px solid var(--border);
-    }
-    .student-table td { padding: 10px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.03); }
-    .student-table tr:last-child td { border-bottom: none; }
-    .avatar {
-      width: 28px; height: 28px; border-radius: 50%;
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700; color: #fff; margin-right: 8px;
-      vertical-align: middle;
-    }
-    .badge-paid   { background: rgba(16,185,129,0.15); color: #10b981; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 600; }
-    .badge-due    { background: rgba(239,68,68,0.15); color: #ef4444; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 600; }
-    .badge-class  { background: var(--card); color: var(--muted); padding: 3px 9px; border-radius: 99px; font-size: 11px; }
+    /* Sidebar */
+    .sb { width: 210px; flex-shrink: 0; background: #f9fafb; border-right: 1px solid var(--border); padding: 16px 0; }
+    .sb-logo { display: flex; align-items: center; gap: 9px; padding: 6px 18px 16px; font-size: 14px; font-weight: 800; color: var(--p1); border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+    .sb-icon { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--p1), var(--pink)); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .sbi { display: flex; align-items: center; gap: 10px; padding: 9px 18px; font-size: 13px; color: #6b7280; border-radius: 8px; margin: 2px 8px; transition: background .15s, color .15s; }
+    .sbi.on { background: #ede9fe; color: var(--p1); font-weight: 600; }
+    .sbi:hover:not(.on) { background: #f3f4f6; color: var(--text); }
+    /* Main */
+    .mc { flex: 1; padding: 22px; overflow: hidden; }
+    .mc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .mc-ttl { font-size: 18px; font-weight: 800; color: var(--text); }
+    .mc-btn { padding: 8px 16px; border-radius: 8px; background: linear-gradient(135deg, var(--p1), var(--pink)); font-size: 13px; font-weight: 600; color: #fff; }
+    .sr { display: flex; gap: 12px; margin-bottom: 18px; }
+    .ms { flex: 1; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+    .ms-v { font-size: 22px; font-weight: 900; }
+    .ms-l { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .tbl { width: 100%; border-collapse: collapse; }
+    .tbl th { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--dim); text-align: left; padding: 8px 10px; border-bottom: 1.5px solid var(--border); }
+    .tbl td { padding: 10px; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
+    .tbl tr:last-child td { border-bottom: none; }
+    .av { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; margin-right: 8px; vertical-align: middle; }
+    .paid { background: #d1fae5; color: #059669; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+    .due  { background: #fee2e2; color: #dc2626; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+    .cls  { background: #f3f4f6; color: #6b7280; padding: 3px 9px; border-radius: 99px; font-size: 11px; }
 
-    /* ── Download ────────────────────────────────────── */
-    #download-section {
-      padding: 80px 0 100px;
-    }
-    .download-card {
-      background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(139,92,246,0.08) 100%);
-      border: 1px solid rgba(99,102,241,0.2);
-      border-radius: 24px;
-      padding: 56px 52px;
-      text-align: center;
+    /* ── DOWNLOAD ── */
+    #dl-sec { padding: 80px 0 100px; background: #fff; }
+    .dl-card {
+      border-radius: 28px; padding: 60px 52px; text-align: center;
+      background: linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #06b6d4 100%);
       position: relative; overflow: hidden;
     }
-    .download-card::before {
-      content: '';
-      position: absolute; top: -50%; left: -50%;
-      width: 200%; height: 200%;
-      background: radial-gradient(circle at center, rgba(99,102,241,0.05) 0%, transparent 60%);
-      pointer-events: none;
+    .dl-card::before { content:''; position:absolute; inset:0; background:rgba(255,255,255,0.08); }
+    .dl-card * { position: relative; z-index: 1; }
+    .dl-card .sec-label { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); color: #fff; }
+    .dl-card .sec-title { color: #fff; }
+    .dl-card .sec-sub { color: rgba(255,255,255,0.85); margin: 10px auto; }
+    .dl-meta { display: inline-flex; gap: 32px; flex-wrap: wrap; justify-content: center; margin: 32px 0; }
+    .dl-mi { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .dl-mi .dl-l { font-size: 11px; text-transform: uppercase; letter-spacing: .9px; color: rgba(255,255,255,0.65); }
+    .dl-mi .dl-v { font-size: 20px; font-weight: 800; color: #fff; }
+    .btn-dl {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 18px 44px; border-radius: var(--r);
+      background: #fff; color: var(--p1);
+      font-size: 18px; font-weight: 800;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      transition: transform .2s, box-shadow .2s;
+      border: none; cursor: pointer;
     }
-    .dl-meta {
-      display: inline-flex; gap: 28px; flex-wrap: wrap; justify-content: center;
-      margin: 28px 0;
-    }
-    .dl-meta-item {
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
-    }
-    .dl-meta-item .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.9px; color: var(--dim); }
-    .dl-meta-item .val { font-size: 18px; font-weight: 700; color: var(--p3); }
-    .sysreq {
-      margin-top: 20px; font-size: 13px; color: var(--dim);
-    }
+    .btn-dl:hover { transform: translateY(-4px); box-shadow: 0 14px 48px rgba(0,0,0,0.25); }
+    .btn-dl.disabled { background: rgba(255,255,255,0.4); color: rgba(255,255,255,0.7); pointer-events: none; box-shadow: none; }
+    .sysreq { margin-top: 18px; font-size: 13px; color: rgba(255,255,255,0.65); }
 
-    /* ── Steps ───────────────────────────────────────── */
-    #steps { padding: 80px 0; }
-    .steps-row {
-      display: flex; align-items: flex-start; gap: 0;
-      margin-top: 52px; position: relative;
+    /* ── STEPS ── */
+    #steps { padding: 80px 0; background: var(--bg); }
+    .steps-row { display: flex; gap: 0; margin-top: 52px; position: relative; }
+    .steps-row::before { content:''; position:absolute; top:34px; left:calc(16.666% + 30px); right:calc(16.666% + 30px); height:2px; background:linear-gradient(to right,var(--p1),var(--pink),var(--cyan)); border-radius:99px; }
+    .step-i { flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; padding:0 20px; }
+    .step-n {
+      width: 68px; height: 68px; border-radius: 50%; z-index: 1;
+      display: flex; align-items: center; justify-content: center; font-size: 22px;
+      margin-bottom: 18px; border: 3px solid #fff;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.2);
+      transition: transform .3s, box-shadow .3s;
     }
-    .steps-row::before {
-      content: '';
-      position: absolute; top: 28px; left: calc(16.666% + 24px); right: calc(16.666% + 24px);
-      height: 1px; background: linear-gradient(to right, var(--p1), var(--p2), var(--accent));
-      opacity: 0.3;
-    }
-    .step-item {
-      flex: 1; display: flex; flex-direction: column; align-items: center;
-      text-align: center; padding: 0 20px;
-    }
-    .step-num {
-      width: 56px; height: 56px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; font-weight: 800; margin-bottom: 18px;
-      border: 2px solid var(--border);
-      background: var(--bg2); position: relative; z-index: 1;
-      transition: border-color 0.3s, box-shadow 0.3s;
-    }
-    .step-item:hover .step-num {
-      border-color: var(--p1);
-      box-shadow: 0 0 24px var(--glow);
-    }
-    .step-num.s1 { color: var(--p1); }
-    .step-num.s2 { color: var(--p2); }
-    .step-num.s3 { color: var(--accent); }
-    .step-item h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-    .step-item p  { font-size: 14px; color: var(--muted); }
+    .step-i:hover .step-n { transform: scale(1.1); box-shadow: 0 8px 32px rgba(124,58,237,0.3); }
+    .step-n.s1 { background: linear-gradient(135deg, var(--p1), var(--p2)); color: #fff; }
+    .step-n.s2 { background: linear-gradient(135deg, var(--pink), #f97316); color: #fff; }
+    .step-n.s3 { background: linear-gradient(135deg, var(--cyan), var(--green)); color: #fff; }
+    .step-i h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .step-i p  { font-size: 14px; color: var(--muted); }
 
-    /* ── Contact ─────────────────────────────────────── */
-    #contact { padding: 80px 0; }
-    .contact-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 48px;
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 32px; flex-wrap: wrap;
+    /* ── CONTACT ── */
+    #contact { padding: 80px 0; background: #fff; }
+    .ct-card {
+      border-radius: 24px; padding: 48px;
+      background: linear-gradient(135deg, #f5f3ff 0%, #fce7f3 100%);
+      border: 1.5px solid #ddd6fe;
+      display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap;
     }
-    .contact-left h2 { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
-    .contact-left p  { font-size: 15px; color: var(--muted); }
-    .contact-phone   { font-size: 34px; font-weight: 900; letter-spacing: -1px; margin: 10px 0; }
-    .contact-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+    .ct-l h2 { font-size: 28px; font-weight: 900; margin-bottom: 6px; }
+    .ct-l p  { font-size: 15px; color: var(--muted); }
+    .ct-ph  { font-size: 36px; font-weight: 900; letter-spacing: -1px; margin: 10px 0; }
+    .ct-btns { display: flex; gap: 12px; flex-wrap: wrap; }
     .btn-wa {
       display: inline-flex; align-items: center; gap: 9px;
       padding: 13px 26px; border-radius: var(--r);
       background: #25d366; color: #fff;
       font-size: 15px; font-weight: 700;
-      transition: opacity 0.2s, transform 0.2s;
+      box-shadow: 0 4px 20px rgba(37,211,102,0.3);
+      transition: transform .2s, box-shadow .2s;
     }
-    .btn-wa:hover { opacity: 0.88; transform: translateY(-2px); }
-    .btn-call {
+    .btn-wa:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(37,211,102,0.4); }
+    .btn-cl {
       display: inline-flex; align-items: center; gap: 9px;
       padding: 13px 26px; border-radius: var(--r);
-      border: 1px solid var(--border-h); background: var(--card);
-      color: var(--text); font-size: 15px; font-weight: 700;
-      transition: background 0.2s, border-color 0.2s, transform 0.2s;
-    }
-    .btn-call:hover { background: var(--card-hover); border-color: var(--p1); transform: translateY(-2px); }
-    .contact-right {
-      text-align: center; flex-shrink: 0;
-    }
-    .contact-avatar {
-      width: 90px; height: 90px; border-radius: 50%;
       background: linear-gradient(135deg, var(--p1), var(--p2));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 36px; margin: 0 auto 12px;
-      box-shadow: 0 0 40px var(--glow);
+      color: #fff; font-size: 15px; font-weight: 700;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.3);
+      transition: transform .2s, box-shadow .2s;
     }
-    .contact-name { font-size: 16px; font-weight: 700; }
-    .contact-role { font-size: 13px; color: var(--muted); }
+    .btn-cl:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(124,58,237,0.4); }
+    .ct-r { text-align: center; flex-shrink: 0; }
+    .ct-av {
+      width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 12px;
+      background: linear-gradient(135deg, var(--p1), var(--pink));
+      display: flex; align-items: center; justify-content: center; font-size: 40px;
+      box-shadow: 0 8px 32px rgba(124,58,237,0.25);
+    }
+    .ct-nm { font-size: 16px; font-weight: 700; color: var(--text); }
+    .ct-rl { font-size: 13px; color: var(--muted); margin-top: 3px; }
 
-    /* ── Footer ──────────────────────────────────────── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 36px 0;
-      position: relative; z-index: 1;
-    }
-    .footer-inner {
-      display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 16px;
-    }
-    .footer-logo { display: flex; align-items: center; gap: 9px; font-weight: 700; }
-    .footer-links { display: flex; gap: 20px; }
-    .footer-links a { font-size: 13px; color: var(--dim); transition: color 0.2s; }
-    .footer-links a:hover { color: var(--muted); }
-    .footer-copy { font-size: 13px; color: var(--dim); }
+    /* ── FOOTER ── */
+    footer { background: #1e1b4b; padding: 36px 0; }
+    .foot-in { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .foot-logo { display: flex; align-items: center; gap: 9px; font-weight: 800; color: #fff; font-size: 15px; }
+    .foot-links { display: flex; gap: 20px; }
+    .foot-links a { font-size: 13px; color: #a5b4fc; transition: color .2s; }
+    .foot-links a:hover { color: #fff; }
+    .foot-copy { font-size: 13px; color: #6366f1; }
 
-    /* ── Spinner ─────────────────────────────────────── */
-    .spinner {
-      display: inline-block; width: 18px; height: 18px;
-      border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
-      border-radius: 50%; animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* ── Spinner ── */
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: sp .7s linear infinite; }
+    @keyframes sp { to { transform: rotate(360deg); } }
+    .spinner-dark { border-color: rgba(124,58,237,0.3); border-top-color: var(--p1); }
 
-    /* ── Lucide icon sizing ───────────────────────────── */
     [data-lucide] { width: 18px; height: 18px; stroke-width: 2; }
-    .feat-icon [data-lucide] { width: 22px; height: 22px; }
-    .btn-primary [data-lucide], .btn-secondary [data-lucide] { width: 18px; height: 18px; }
+    .feat-card [data-lucide] { width: 24px; height: 24px; }
 
-    /* ── Responsive ──────────────────────────────────── */
     @media (max-width: 768px) {
       #nav { padding: 0 20px; }
-      .nav-links { display: none; }
-      .features-grid { grid-template-columns: 1fr 1fr; }
+      .nav-links a:not(.nav-cta) { display: none; }
+      .feat-grid { grid-template-columns: 1fr 1fr; }
       .steps-row { flex-direction: column; align-items: center; gap: 28px; }
       .steps-row::before { display: none; }
-      .contact-card { flex-direction: column; text-align: center; }
-      .contact-btns { justify-content: center; }
-      .sidebar { display: none; }
-      .stats-inner { gap: 0; }
-      .stat-item { padding: 0 24px; }
-      .download-card { padding: 36px 24px; }
-      .footer-inner { flex-direction: column; text-align: center; }
+      .ct-card { flex-direction: column; text-align: center; }
+      .ct-btns { justify-content: center; }
+      .sb { display: none; }
+      .stat-item { padding: 0 28px; }
+      .dl-card { padding: 40px 24px; }
+      .foot-in { flex-direction: column; text-align: center; }
     }
     @media (max-width: 520px) {
-      .features-grid { grid-template-columns: 1fr; }
-      .stat-item { border-right: none; border-bottom: 1px solid var(--border); padding: 16px 0; width: 100%; }
+      .feat-grid { grid-template-columns: 1fr; }
+      .stat-item { border-right: none; border-bottom: 1px solid var(--border); padding: 14px 0; width: 100%; }
+      .dl-meta { gap: 20px; }
     }
   </style>
 </head>
 <body>
 
-<!-- Animated background -->
-<div class="bg-canvas">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-</div>
-
-<!-- ── NAVBAR ── -->
+<!-- NAVBAR -->
 <nav id="nav">
   <div class="nav-logo">
-    <div class="logo-dot">🏫</div>
+    <div class="nav-icon">🏫</div>
     MY School App
   </div>
   <div class="nav-links">
     <a href="#features">Features</a>
     <a href="#preview">Preview</a>
-    <a href="#download-section">Download</a>
+    <a href="#dl-sec">Download</a>
     <a href="#contact">Contact</a>
-    <a href="#download-section" class="nav-cta" id="nav-download">
-      <i data-lucide="download"></i> Download
-    </a>
+    <a id="nav-dl" href="#dl-sec" class="nav-cta">⬇ Download</a>
   </div>
 </nav>
 
-<!-- ── HERO ── -->
+<!-- HERO -->
 <section id="hero">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="blob blob-4"></div>
+
   <div class="hero-badge">
-    <span class="dot"></span>
+    <span class="live-dot"></span>
     Windows Desktop App &nbsp;·&nbsp; Offline & Secure
   </div>
 
-  <h1 class="hero-title">
-    <span class="gradient-text">MY School App</span>
-  </h1>
+  <h1 class="hero-title"><span class="gt">MY School App</span></h1>
   <p class="hero-tagline">Smart School Management System</p>
-  <p class="hero-marathi">शाळेसाठी सोपा आणि पूर्ण व्यवस्थापन system</p>
+  <p class="hero-mr">शाळेसाठी सोपा आणि पूर्ण व्यवस्थापन system</p>
 
   <div class="hero-actions">
-    <a id="hero-download" href="#" class="btn-primary disabled">
-      <span class="spinner" id="hero-spinner"></span>
-      <span id="hero-btn-text">Loading...</span>
+    <a id="hero-dl" href="#" class="btn-main disabled">
+      <span class="spinner" id="h-sp"></span>
+      <span id="h-txt">Loading...</span>
     </a>
-    <a href="#features" class="btn-secondary">
-      <i data-lucide="sparkles"></i>
-      Features पहा
+    <a href="#features" class="btn-out">
+      <i data-lucide="sparkles"></i> Features पहा
     </a>
   </div>
 
-  <div class="version-pill" id="version-pill">
+  <div class="vpill">
     <i data-lucide="tag"></i>
-    Latest: <span id="hero-version">Loading...</span>
-    &nbsp;·&nbsp;
-    <span id="hero-size">...</span>
+    Latest: <b id="h-ver">&nbsp;Loading...</b> &nbsp;·&nbsp; <span id="h-sz">...</span>
   </div>
-
-  <div class="hero-divider"></div>
 </section>
 
-<!-- ── STATS BAR ── -->
+<!-- STATS -->
 <div class="stats-bar">
   <div class="stats-inner container">
     <div class="stat-item fade-up">
-      <div class="stat-num gradient-text">100%</div>
-      <div class="stat-lbl">Offline — No Internet Needed</div>
+      <div class="stat-n gt">100%</div>
+      <div class="stat-l">Offline — No Internet Needed</div>
     </div>
-    <div class="stat-item fade-up" style="transition-delay:0.1s">
-      <div class="stat-num gradient-text">6+</div>
-      <div class="stat-lbl">Core Modules</div>
+    <div class="stat-item fade-up" style="transition-delay:.1s">
+      <div class="stat-n gt2">6+</div>
+      <div class="stat-l">Core Modules</div>
     </div>
-    <div class="stat-item fade-up" style="transition-delay:0.2s">
-      <div class="stat-num gradient-text">Free</div>
-      <div class="stat-lbl">Updates — Always Latest</div>
+    <div class="stat-item fade-up" style="transition-delay:.2s">
+      <div class="stat-n" style="background:linear-gradient(135deg,#10b981,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Free</div>
+      <div class="stat-l">Updates — Always Latest</div>
     </div>
   </div>
 </div>
 
-<!-- ── FEATURES ── -->
-<section id="features" class="section">
+<!-- FEATURES -->
+<section id="features">
   <div class="container">
     <div class="fade-up">
-      <div class="section-label"><i data-lucide="layers"></i> Features</div>
-      <h2 class="section-title">शाळेसाठी सर्व काही<br><span class="gradient-text">एकाच App मध्ये</span></h2>
-      <p class="section-sub">Student management पासून LC certificate पर्यंत — सर्व काही simple आणि fast.</p>
+      <div class="sec-label"><i data-lucide="layers"></i> Features</div>
+      <h2 class="sec-title">शाळेसाठी सर्व काही<br><span class="gt">एकाच App मध्ये</span></h2>
+      <p class="sec-sub">Student management पासून LC certificate पर्यंत — सर्व simple आणि fast.</p>
     </div>
-
-    <div class="features-grid">
-      <div class="feat-card fade-up" style="transition-delay:0.05s">
-        <div class="feat-icon indigo"><i data-lucide="users" style="color:#6366f1"></i></div>
+    <div class="feat-grid">
+      <div class="feat-card fade-up" style="transition-delay:.05s">
+        <div class="fic fic-v"><i data-lucide="users" style="color:#7c3aed"></i></div>
         <h3>Student Management</h3>
-        <p>Students add, edit, search करा. Photo, admission details, documents सर्व एकाच ठिकाणी.</p>
+        <p>Students add, edit, search करा. Photo, admission details सर्व एकाच ठिकाणी manage करा.</p>
       </div>
-      <div class="feat-card fade-up" style="transition-delay:0.10s">
-        <div class="feat-icon green"><i data-lucide="receipt" style="color:#10b981"></i></div>
+      <div class="feat-card fade-up" style="transition-delay:.10s">
+        <div class="fic fic-g"><i data-lucide="receipt" style="color:#10b981"></i></div>
         <h3>Fee & Receipt System</h3>
         <p>Fees collect करा, receipts print करा. Pending dues, payment history automatically track होते.</p>
       </div>
-      <div class="feat-card fade-up" style="transition-delay:0.15s">
-        <div class="feat-icon amber"><i data-lucide="file-text" style="color:#f59e0b"></i></div>
+      <div class="feat-card fade-up" style="transition-delay:.15s">
+        <div class="fic fic-a"><i data-lucide="file-text" style="color:#d97706"></i></div>
         <h3>LC Certificate</h3>
         <p>Leaving Certificate automatically generate करा. A4/A3 print ready, custom template support.</p>
       </div>
-      <div class="feat-card fade-up" style="transition-delay:0.20s">
-        <div class="feat-icon cyan"><i data-lucide="scroll" style="color:#06b6d4"></i></div>
+      <div class="feat-card fade-up" style="transition-delay:.20s">
+        <div class="fic fic-c"><i data-lucide="scroll" style="color:#0891b2"></i></div>
         <h3>Bonafide Certificate</h3>
         <p>Bonafide certificates instant generate करा. Custom header, signature, stamp सह print करा.</p>
       </div>
-      <div class="feat-card fade-up" style="transition-delay:0.25s">
-        <div class="feat-icon purple"><i data-lucide="bar-chart-2" style="color:#8b5cf6"></i></div>
+      <div class="feat-card fade-up" style="transition-delay:.25s">
+        <div class="fic fic-p"><i data-lucide="bar-chart-2" style="color:#db2777"></i></div>
         <h3>Reports & Records</h3>
         <p>Fee collection reports, student lists, class-wise data. PDF export ready.</p>
       </div>
-      <div class="feat-card fade-up" style="transition-delay:0.30s">
-        <div class="feat-icon rose"><i data-lucide="shield-check" style="color:#f43f5e"></i></div>
+      <div class="feat-card fade-up" style="transition-delay:.30s">
+        <div class="fic fic-r"><i data-lucide="shield-check" style="color:#dc2626"></i></div>
         <h3>Offline & Secure</h3>
         <p>Internet नसताना पण काम करतो. Data local machine वर — 100% private आणि safe.</p>
       </div>
@@ -661,105 +419,49 @@
   </div>
 </section>
 
-<!-- ── APP PREVIEW ── -->
-<section id="preview" class="section" style="padding-top:0">
+<!-- PREVIEW -->
+<section id="preview" style="padding:80px 0 100px">
   <div class="container">
     <div class="fade-up" style="text-align:center">
-      <div class="section-label" style="margin:0 auto 20px"><i data-lucide="monitor"></i> App Preview</div>
-      <h2 class="section-title">Clean, Fast Interface</h2>
-      <p class="section-sub" style="margin:12px auto 0">Modern design जे school staff ला वापरायला सोपे आहे.</p>
+      <div class="sec-label" style="margin:0 auto 16px"><i data-lucide="monitor"></i> App Preview</div>
+      <h2 class="sec-title">Clean, Fast Interface</h2>
+      <p class="sec-sub" style="margin:10px auto 0">Modern design जे school staff ला वापरायला सोपे आहे.</p>
     </div>
-
-    <div class="preview-wrap fade-up" style="transition-delay:0.15s;margin-top:48px">
-      <div class="window-bar">
-        <span class="wdot r"></span>
-        <span class="wdot y"></span>
-        <span class="wdot g"></span>
-        <span class="wtitle">MY School App — Student Management</span>
+    <div class="pw fade-up" style="transition-delay:.15s">
+      <div class="wbar">
+        <span class="wd" style="background:#ff5f57"></span>
+        <span class="wd" style="background:#febc2e"></span>
+        <span class="wd" style="background:#28c840"></span>
+        <span class="wt">MY School App — Student Management</span>
       </div>
       <div class="app-ui">
-        <!-- Sidebar -->
-        <div class="sidebar">
-          <div class="sidebar-logo">
-            <div class="sb-logo-dot">🏫</div>
-            MY School
-          </div>
-          <div class="sb-item active">
-            <i data-lucide="users" style="width:15px;height:15px"></i> Students
-          </div>
-          <div class="sb-item">
-            <i data-lucide="indian-rupee" style="width:15px;height:15px"></i> Fees
-          </div>
-          <div class="sb-item">
-            <i data-lucide="receipt" style="width:15px;height:15px"></i> Receipts
-          </div>
-          <div class="sb-item">
-            <i data-lucide="file-text" style="width:15px;height:15px"></i> LC
-          </div>
-          <div class="sb-item">
-            <i data-lucide="scroll" style="width:15px;height:15px"></i> Bonafide
-          </div>
-          <div class="sb-item">
-            <i data-lucide="bar-chart-2" style="width:15px;height:15px"></i> Reports
-          </div>
-          <div class="sb-item">
-            <i data-lucide="settings" style="width:15px;height:15px"></i> Settings
-          </div>
+        <div class="sb">
+          <div class="sb-logo"><div class="sb-icon">🏫</div> MY School</div>
+          <div class="sbi on"><i data-lucide="users" style="width:14px;height:14px"></i> Students</div>
+          <div class="sbi"><i data-lucide="indian-rupee" style="width:14px;height:14px"></i> Fees</div>
+          <div class="sbi"><i data-lucide="receipt" style="width:14px;height:14px"></i> Receipts</div>
+          <div class="sbi"><i data-lucide="file-text" style="width:14px;height:14px"></i> LC</div>
+          <div class="sbi"><i data-lucide="scroll" style="width:14px;height:14px"></i> Bonafide</div>
+          <div class="sbi"><i data-lucide="bar-chart-2" style="width:14px;height:14px"></i> Reports</div>
+          <div class="sbi"><i data-lucide="settings" style="width:14px;height:14px"></i> Settings</div>
         </div>
-        <!-- Main -->
-        <div class="main-content">
-          <div class="mc-header">
-            <span class="mc-title">Students</span>
+        <div class="mc">
+          <div class="mc-head">
+            <span class="mc-ttl">Students</span>
             <span class="mc-btn">+ Add Student</span>
           </div>
-          <div class="stats-row">
-            <div class="mini-stat">
-              <div class="ms-val gradient-text">247</div>
-              <div class="ms-lbl">Total Students</div>
-            </div>
-            <div class="mini-stat">
-              <div class="ms-val" style="color:#10b981">189</div>
-              <div class="ms-lbl">Fees Paid</div>
-            </div>
-            <div class="mini-stat">
-              <div class="ms-val" style="color:#ef4444">58</div>
-              <div class="ms-lbl">Fees Due</div>
-            </div>
+          <div class="sr">
+            <div class="ms"><div class="ms-v gt">247</div><div class="ms-l">Total Students</div></div>
+            <div class="ms"><div class="ms-v" style="color:#10b981">189</div><div class="ms-l">Fees Paid</div></div>
+            <div class="ms"><div class="ms-v" style="color:#ef4444">58</div><div class="ms-l">Fees Due</div></div>
           </div>
-          <table class="student-table">
-            <thead>
-              <tr>
-                <th>Student</th>
-                <th>Class</th>
-                <th>Admission No</th>
-                <th>Fee Status</th>
-              </tr>
-            </thead>
+          <table class="tbl">
+            <thead><tr><th>Student</th><th>Class</th><th>Adm No</th><th>Fee Status</th></tr></thead>
             <tbody>
-              <tr>
-                <td><span class="avatar" style="background:#6366f1">RP</span>Rahul Patil</td>
-                <td><span class="badge-class">Class 5</span></td>
-                <td style="color:var(--muted)">ADM-1042</td>
-                <td><span class="badge-paid">Paid</span></td>
-              </tr>
-              <tr>
-                <td><span class="avatar" style="background:#8b5cf6">PS</span>Priya Sharma</td>
-                <td><span class="badge-class">Class 3</span></td>
-                <td style="color:var(--muted)">ADM-1043</td>
-                <td><span class="badge-due">Due</span></td>
-              </tr>
-              <tr>
-                <td><span class="avatar" style="background:#06b6d4">AK</span>Amit Kumar</td>
-                <td><span class="badge-class">Class 7</span></td>
-                <td style="color:var(--muted)">ADM-1044</td>
-                <td><span class="badge-paid">Paid</span></td>
-              </tr>
-              <tr>
-                <td><span class="avatar" style="background:#10b981">SJ</span>Sneha Jadhav</td>
-                <td><span class="badge-class">Class 6</span></td>
-                <td style="color:var(--muted)">ADM-1045</td>
-                <td><span class="badge-paid">Paid</span></td>
-              </tr>
+              <tr><td><span class="av" style="background:#7c3aed">RP</span>Rahul Patil</td><td><span class="cls">Class 5</span></td><td style="color:#9ca3af">ADM-1042</td><td><span class="paid">Paid</span></td></tr>
+              <tr><td><span class="av" style="background:#ec4899">PS</span>Priya Sharma</td><td><span class="cls">Class 3</span></td><td style="color:#9ca3af">ADM-1043</td><td><span class="due">Due</span></td></tr>
+              <tr><td><span class="av" style="background:#06b6d4">AK</span>Amit Kumar</td><td><span class="cls">Class 7</span></td><td style="color:#9ca3af">ADM-1044</td><td><span class="paid">Paid</span></td></tr>
+              <tr><td><span class="av" style="background:#10b981">SJ</span>Sneha Jadhav</td><td><span class="cls">Class 6</span></td><td style="color:#9ca3af">ADM-1045</td><td><span class="paid">Paid</span></td></tr>
             </tbody>
           </table>
         </div>
@@ -768,67 +470,49 @@
   </div>
 </section>
 
-<!-- ── DOWNLOAD ── -->
-<section id="download-section" class="section" style="padding-top:0">
+<!-- DOWNLOAD -->
+<section id="dl-sec">
   <div class="container">
-    <div class="download-card fade-up">
-      <div class="section-label" style="margin:0 auto 20px"><i data-lucide="download-cloud"></i> Download</div>
-      <h2 class="section-title">आजच Download करा</h2>
-      <p class="section-sub" style="margin:10px auto">Windows साठी free installer. Install करा आणि लगेच सुरू करा.</p>
-
+    <div class="dl-card fade-up">
+      <div class="sec-label"><i data-lucide="download-cloud"></i> Download</div>
+      <h2 class="sec-title">आजच Download करा</h2>
+      <p class="sec-sub">Windows साठी free installer. Install करा आणि लगेच सुरू करा.</p>
       <div class="dl-meta">
-        <div class="dl-meta-item">
-          <span class="lbl">Version</span>
-          <span class="val" id="dl-version">—</span>
-        </div>
-        <div class="dl-meta-item">
-          <span class="lbl">Released</span>
-          <span class="val" id="dl-date">—</span>
-        </div>
-        <div class="dl-meta-item">
-          <span class="lbl">File Size</span>
-          <span class="val" id="dl-size">—</span>
-        </div>
-        <div class="dl-meta-item">
-          <span class="lbl">Platform</span>
-          <span class="val">Windows</span>
-        </div>
+        <div class="dl-mi"><span class="dl-l">Version</span><span class="dl-v" id="dl-ver">—</span></div>
+        <div class="dl-mi"><span class="dl-l">Released</span><span class="dl-v" id="dl-dt">—</span></div>
+        <div class="dl-mi"><span class="dl-l">File Size</span><span class="dl-v" id="dl-sz">—</span></div>
+        <div class="dl-mi"><span class="dl-l">Platform</span><span class="dl-v">Windows</span></div>
       </div>
-
-      <a id="dl-btn" href="#" class="btn-primary disabled" style="font-size:18px;padding:18px 44px">
-        <span class="spinner" id="dl-spinner"></span>
-        <span id="dl-btn-text">Loading...</span>
+      <a id="dl-btn" href="#" class="btn-dl disabled">
+        <span class="spinner spinner-dark" id="dl-sp"></span>
+        <span id="dl-txt">Loading...</span>
       </a>
-
-      <p class="sysreq" style="margin-top:18px">
-        Windows 10 / 11 &nbsp;·&nbsp; 64-bit &nbsp;·&nbsp; ~85 MB
-      </p>
+      <p class="sysreq">Windows 10 / 11 &nbsp;·&nbsp; 64-bit &nbsp;·&nbsp; ~85 MB</p>
     </div>
   </div>
 </section>
 
-<!-- ── STEPS ── -->
-<section id="steps" class="section" style="padding-top:0">
+<!-- STEPS -->
+<section id="steps">
   <div class="container">
     <div class="fade-up" style="text-align:center">
-      <div class="section-label" style="margin:0 auto 20px"><i data-lucide="list-ordered"></i> Installation</div>
-      <h2 class="section-title">3 Simple Steps</h2>
-      <p class="section-sub" style="margin:10px auto">2 मिनिटात install होतो.</p>
+      <div class="sec-label" style="margin:0 auto 16px"><i data-lucide="list-ordered"></i> Installation</div>
+      <h2 class="sec-title">3 Simple Steps मध्ये Install करा</h2>
+      <p class="sec-sub" style="margin:10px auto 0">फक्त 2 मिनिटात ready होतो.</p>
     </div>
-
     <div class="steps-row">
-      <div class="step-item fade-up" style="transition-delay:0.05s">
-        <div class="step-num s1"><i data-lucide="download" style="width:24px;height:24px"></i></div>
+      <div class="step-i fade-up" style="transition-delay:.05s">
+        <div class="step-n s1"><i data-lucide="download" style="width:26px;height:26px"></i></div>
         <h3>Download करा</h3>
         <p>वरील button दाबून<br>.exe file download करा</p>
       </div>
-      <div class="step-item fade-up" style="transition-delay:0.15s">
-        <div class="step-num s2"><i data-lucide="mouse-pointer-2" style="width:24px;height:24px"></i></div>
+      <div class="step-i fade-up" style="transition-delay:.15s">
+        <div class="step-n s2"><i data-lucide="mouse-pointer-2" style="width:26px;height:26px"></i></div>
         <h3>Double Click करा</h3>
         <p>Download झालेल्या file वर<br>double-click करा</p>
       </div>
-      <div class="step-item fade-up" style="transition-delay:0.25s">
-        <div class="step-num s3"><i data-lucide="check-circle-2" style="width:24px;height:24px"></i></div>
+      <div class="step-i fade-up" style="transition-delay:.25s">
+        <div class="step-n s3"><i data-lucide="check-circle-2" style="width:26px;height:26px"></i></div>
         <h3>Install & Ready!</h3>
         <p>Install करा आणि<br>लगेच वापरायला सुरू करा</p>
       </div>
@@ -836,136 +520,102 @@
   </div>
 </section>
 
-<!-- ── CONTACT ── -->
-<section id="contact" class="section" style="padding-top:0">
+<!-- CONTACT -->
+<section id="contact" style="padding:80px 0">
   <div class="container">
-    <div class="contact-card fade-up">
-      <div class="contact-left">
-        <div class="section-label"><i data-lucide="message-circle"></i> License & Support</div>
+    <div class="ct-card fade-up">
+      <div class="ct-l">
+        <div class="sec-label"><i data-lucide="message-circle"></i> License & Support</div>
         <h2>License साठी संपर्क करा</h2>
         <p>App install केल्यावर license activate करण्यासाठी<br>WhatsApp करा किंवा call करा.</p>
-        <div class="contact-phone gradient-text">83904 84545</div>
-        <div class="contact-btns">
+        <div class="ct-ph gt">83904 84545</div>
+        <div class="ct-btns">
           <a href="https://wa.me/918390484545" target="_blank" rel="noopener" class="btn-wa">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
             WhatsApp करा
           </a>
-          <a href="tel:8390484545" class="btn-call">
-            <i data-lucide="phone"></i>
-            Call करा
+          <a href="tel:8390484545" class="btn-cl">
+            <i data-lucide="phone"></i> Call करा
           </a>
         </div>
       </div>
-      <div class="contact-right">
-        <div class="contact-avatar">👨‍💼</div>
-        <div class="contact-name">Mr. Nagesh Kumbhar Sir</div>
-        <div class="contact-role">Developer & Support</div>
+      <div class="ct-r">
+        <div class="ct-av">👨‍💼</div>
+        <div class="ct-nm">Mr. Nagesh Kumbhar Sir</div>
+        <div class="ct-rl">Developer & Support</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ── FOOTER ── -->
+<!-- FOOTER -->
 <footer>
   <div class="container">
-    <div class="footer-inner">
-      <div class="footer-logo">
-        <div class="logo-dot" style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:14px">🏫</div>
-        MY School App
+    <div class="foot-in">
+      <div class="foot-logo">
+        <div class="nav-icon">🏫</div> MY School App
       </div>
-      <div class="footer-links">
+      <div class="foot-links">
         <a href="#features">Features</a>
-        <a href="#download-section">Download</a>
+        <a href="#dl-sec">Download</a>
         <a href="#contact">Contact</a>
       </div>
-      <div class="footer-copy">© 2026 MY School App. Made for Schools in Maharashtra.</div>
+      <div class="foot-copy">© 2026 MY School App · Made for Schools in Maharashtra</div>
     </div>
   </div>
 </footer>
 
 <script>
-  /* ── GitHub API ── */
   const REPO = 'nageshkumbhar113-blip/myschool-releases'
+  const fmt  = iso => new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})
+  const fmtB = b   => b ? (b/1024/1024).toFixed(1)+' MB' : '—'
 
-  function fmtDate(iso) {
-    return new Date(iso).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' })
-  }
-  function fmtSize(b) {
-    return b ? (b / 1024 / 1024).toFixed(1) + ' MB' : '—'
-  }
-
-  async function loadRelease() {
+  async function load() {
     try {
-      const res  = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`,
-                               { headers: { Accept: 'application/vnd.github+json' } })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      const exe  = data.assets.find(a => a.name.endsWith('.exe'))
-      if (!exe) throw new Error()
+      const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`,
+                            {headers:{Accept:'application/vnd.github+json'}})
+      if (!r.ok) throw 0
+      const d = await r.json()
+      const e = d.assets.find(a => a.name.endsWith('.exe'))
+      if (!e) throw 0
 
-      const url  = exe.browser_download_url
-      const ver  = data.tag_name
-      const date = fmtDate(data.published_at)
-      const size = fmtSize(exe.size)
+      const url = e.browser_download_url
+      document.getElementById('h-ver').textContent = d.tag_name
+      document.getElementById('h-sz').textContent  = fmtB(e.size)
+      document.getElementById('dl-ver').textContent = d.tag_name
+      document.getElementById('dl-dt').textContent  = fmt(d.published_at)
+      document.getElementById('dl-sz').textContent  = fmtB(e.size)
 
-      // Hero
-      document.getElementById('hero-version').textContent = ver
-      document.getElementById('hero-size').textContent    = size
-      const hb = document.getElementById('hero-download')
+      const hb = document.getElementById('hero-dl')
       hb.href = url; hb.classList.remove('disabled')
-      hb.innerHTML = '<i data-lucide="download"></i> Download for Windows (.exe)'
+      hb.innerHTML = '<i data-lucide="download"></i> <span>Download for Windows (.exe)</span>'
 
-      // Download section
-      document.getElementById('dl-version').textContent = ver
-      document.getElementById('dl-date').textContent    = date
-      document.getElementById('dl-size').textContent    = size
       const db = document.getElementById('dl-btn')
       db.href = url; db.classList.remove('disabled')
-      db.innerHTML = '<i data-lucide="download"></i> Download for Windows (.exe)'
+      db.innerHTML = '<i data-lucide="download"></i> <span>Download for Windows (.exe)</span>'
 
-      // Nav
-      const nb = document.getElementById('nav-download')
-      nb.href = url
-
+      document.getElementById('nav-dl').href = url
       if (window.lucide) lucide.createIcons()
     } catch {
-      const fallback = `https://github.com/${REPO}/releases/latest/download/MY_School-App-Setup.exe`
-      ;['hero-download','dl-btn','nav-download'].forEach(id => {
+      const fb = `https://github.com/${REPO}/releases/latest/download/MY_School-App-Setup.exe`
+      document.getElementById('h-ver').textContent = 'Latest'
+      ;['hero-dl','dl-btn'].forEach(id => {
         const el = document.getElementById(id)
-        if (el) { el.href = fallback; el.classList.remove('disabled') }
+        if (!el) return
+        el.href = fb; el.classList.remove('disabled')
+        el.innerHTML = '<i data-lucide="download"></i> <span>Download for Windows (.exe)</span>'
       })
-      document.getElementById('hero-download').innerHTML =
-        '<i data-lucide="download"></i> Download for Windows (.exe)'
-      document.getElementById('dl-btn').innerHTML =
-        '<i data-lucide="download"></i> Download for Windows (.exe)'
-      document.getElementById('hero-version').textContent = 'Latest'
+      document.getElementById('nav-dl').href = fb
       if (window.lucide) lucide.createIcons()
     }
   }
 
-  /* ── Navbar scroll ── */
-  const nav = document.getElementById('nav')
-  window.addEventListener('scroll', () => {
-    nav.classList.toggle('scrolled', window.scrollY > 20)
-  }, { passive: true })
-
-  /* ── Scroll animations ── */
-  const io = new IntersectionObserver(entries => {
-    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') })
-  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' })
-
+  // Scroll animations
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') }), {threshold:.1,rootMargin:'0px 0px -30px 0px'})
   document.querySelectorAll('.fade-up').forEach(el => io.observe(el))
 
-  /* ── Init ── */
-  document.addEventListener('DOMContentLoaded', () => {
-    loadRelease()
-    if (window.lucide) lucide.createIcons()
-  })
-
-  // Lucide might load after DOMContentLoaded
-  window.addEventListener('load', () => {
-    if (window.lucide) lucide.createIcons()
-  })
+  document.addEventListener('DOMContentLoaded', () => { load(); if (window.lucide) lucide.createIcons() })
+  window.addEventListener('load', () => { if (window.lucide) lucide.createIcons() })
 </script>
 </body>
 </html>
