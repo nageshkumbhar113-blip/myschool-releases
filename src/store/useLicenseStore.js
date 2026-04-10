@@ -54,9 +54,12 @@ async function reconcileInstitute(payload) {
   if (!instituteId) return
 
   try {
+    // Existing record वाचतो — contact/payment fields preserve करण्यासाठी
+    const existing = await schoolDataService.institutes.get(instituteId)
     await schoolDataService.institutes.upsert({
+      ...(existing ?? {}),
       id: instituteId,
-      name: instituteName ?? 'My School',
+      name: instituteName ?? existing?.name ?? 'My School',
       subscriptionPlan: featureTier ?? 'basic',
       expiryDate: expiresAt ?? '',
       maxStudents: Number(maxStudents ?? 0) || 0,
@@ -232,9 +235,11 @@ const useLicenseStore = create((set) => ({
       }
 
       await schoolDataService.license.saveCurrent(persistedRecord)
+      const existingInst = await schoolDataService.institutes.get(result.payload.instituteId).catch(() => null)
       await schoolDataService.institutes.upsert({
+        ...(existingInst ?? {}),
         id: result.payload.instituteId,
-        name: result.payload.instituteName ?? 'My School',
+        name: result.payload.instituteName ?? existingInst?.name ?? 'My School',
         subscriptionPlan: result.payload.featureTier ?? 'basic',
         expiryDate: result.payload.expiresAt ?? '',
         maxStudents: Number(result.payload.maxStudents ?? 0) || 0,

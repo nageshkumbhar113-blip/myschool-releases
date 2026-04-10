@@ -63,10 +63,11 @@ function getNativeDeviceInfo() {
     .map(item => item.mac.toLowerCase())
     .sort()
 
+  // NOTE: os.release() intentionally excluded — Windows Updates change it
+  // and would invalidate existing licenses on the same machine.
   const fingerprintSource = JSON.stringify({
     hostname: os.hostname(),
     platform: os.platform(),
-    release: os.release(),
     arch: os.arch(),
     cpu: os.cpus()?.[0]?.model || 'unknown-cpu',
     macs,

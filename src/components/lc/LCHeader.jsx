@@ -31,6 +31,7 @@ export default function LCHeader({
   const cfg = { ...DEFAULT_HEADER_CONFIG, ...headerConfig }
 
   const {
+    organizationName = '',
     schoolName = '',
     logo       = '',
     address    = '',
@@ -92,6 +93,23 @@ export default function LCHeader({
             alt="School Logo"
             style={{ height: cfg.logoSize, width: cfg.logoSize, objectFit: 'contain' }}
           />
+        </div>
+      )}
+
+      {/* Organization Name */}
+      {organizationName && (
+        <div
+          style={{
+            width:         '100%',
+            textAlign:     'center',
+            fontSize:      (cfg.schoolNameSize ?? 22) * 0.65,
+            fontWeight:    600,
+            color:         '#333',
+            letterSpacing: 0.5,
+            marginBottom:  2,
+          }}
+        >
+          {organizationName}
         </div>
       )}
 

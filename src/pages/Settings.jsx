@@ -135,6 +135,7 @@ function Field({ label, name, value, onChange, placeholder, required, textarea }
 // ── Main component ─────────────────────────────────────────────────────────
 
 const EMPTY = {
+  organizationName: '',
   schoolName:       '',
   address:          '',
   udiseCode:        '',
@@ -191,6 +192,7 @@ export default function Settings() {
     if (!form.schoolName.trim()) return showToast('School name is required', 'error')
 
     const ok = await saveSettings(instituteId, {
+      organizationName: form.organizationName.trim(),
       schoolName:       form.schoolName.trim(),
       address:          form.address.trim(),
       udiseCode:        form.udiseCode.trim(),
@@ -258,6 +260,13 @@ export default function Settings() {
           <div className="card p-5">
             <SectionHeader icon={School} title="School Information" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <Field
+                  label="Organization Name" name="organizationName"
+                  value={form.organizationName} onChange={handleChange}
+                  placeholder="e.g. Shri Dnyaneshwar Shikshan Sanstha"
+                />
+              </div>
               <div className="sm:col-span-2">
                 <Field
                   label="School Name" name="schoolName"
