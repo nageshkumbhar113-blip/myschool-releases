@@ -4,7 +4,7 @@ import LCFooter from './LCFooter'
 import { getPageSizeConfig } from '../../utils/pageSizes'
 import { isEmptyDocumentValue, resolveDocumentFieldValue } from '../../utils/documentValueResolver'
 
-const SETTINGS_KEYS = new Set(['schoolName', 'address', 'logo', 'udiseCode', 'boardName', 'phone', 'principalName', 'clerkName', 'signature', 'stamp'])
+const SETTINGS_KEYS = new Set(['schoolName', 'address', 'logo', 'udiseCode', 'boardName', 'phone', 'principalName', 'clerkName', 'signature', 'stamp', 'organizationName', 'organizationNameColor', 'schoolNameColor', 'registrationNo', 'sscIndexNo', 'schoolCode'])
 const MANUAL_KEYS = new Set(['reasonForLeaving', 'remark', 'dateOfIssue', 'purpose'])
 
 function getFieldSource(mapping, fieldDef) {
@@ -48,6 +48,10 @@ export default function LCDocumentLayout({
     const fieldDef = fields.find((field) => field.id === mapping.fieldId)
     return fieldDef && !SETTINGS_KEYS.has(fieldDef.key) && fieldDef.type !== 'static'
   })
+
+  const isLC = template?.type === 'lc'
+  const todayFormatted = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const effectiveDateOfIssue = manualData?.dateOfIssue || todayFormatted
 
   useEffect(() => {
     if (mode === 'print') return
@@ -146,9 +150,16 @@ export default function LCDocumentLayout({
               )
             })
           )}
+
+          {/* LC moral character note */}
+          {isLC && (
+            <div style={{ marginTop: '6mm', fontSize: 12, color: '#222', fontStyle: 'italic' }}>
+              To the best of my knowledge he/she bears a good moral character.
+            </div>
+          )}
         </div>
 
-        <LCFooter settings={settings} dateOfIssue={manualData?.dateOfIssue ?? ''} />
+        <LCFooter settings={settings} dateOfIssue={effectiveDateOfIssue} />
       </div>
     </div>
   )

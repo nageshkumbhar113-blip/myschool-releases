@@ -58,7 +58,7 @@ function InfoRow({ label, value }) {
 export default function StudentDetail() {
   const { id }   = useParams()
   const navigate = useNavigate()
-  const { activeStudent, loading, loadStudent, deleteStudent, addInstallment } = useStudentStore()
+  const { activeStudent, loading, loadStudent, deleteStudent, addInstallment, recordLCPrint } = useStudentStore()
   const { currentInstituteId, selectedInstitute } = useAppStore()
 
   const [showModal,    setShowModal]    = useState(false)
@@ -509,6 +509,7 @@ export default function StudentDetail() {
           manualData={manualData}
           title={activeDocMeta?.title}
           onClose={() => setShowNewLCPreview(false)}
+          onPrinted={() => recordLCPrint(s.id)}
         />
       )}
 

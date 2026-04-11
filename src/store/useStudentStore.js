@@ -136,6 +136,24 @@ const useStudentStore = create((set) => ({
     }
   },
 
+  recordLCPrint: async (studentId) => {
+    try {
+      await schoolDataService.students.recordLCPrint(studentId)
+      set((state) => ({
+        students: state.students.map((student) =>
+          student.id === studentId
+            ? { ...student, lcPrintedAt: new Date().toISOString() }
+            : student,
+        ),
+        activeStudent: state.activeStudent?.id === studentId
+          ? { ...state.activeStudent, lcPrintedAt: new Date().toISOString() }
+          : state.activeStudent,
+      }))
+    } catch (err) {
+      console.error('recordLCPrint error:', err)
+    }
+  },
+
   clearError: () => set({ error: null }),
 }))
 

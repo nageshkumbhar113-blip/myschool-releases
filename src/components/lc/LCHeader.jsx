@@ -31,19 +31,27 @@ export default function LCHeader({
   const cfg = { ...DEFAULT_HEADER_CONFIG, ...headerConfig }
 
   const {
-    organizationName = '',
-    schoolName = '',
-    logo       = '',
-    address    = '',
-    udiseCode  = '',
-    boardName  = '',
-    phone      = '',
+    organizationName      = '',
+    organizationNameColor = '',
+    schoolName            = '',
+    schoolNameColor       = '',
+    logo                  = '',
+    address               = '',
+    udiseCode             = '',
+    boardName             = '',
+    phone                 = '',
+    registrationNo        = '',
+    sscIndexNo            = '',
+    schoolCode            = '',
   } = settings ?? {}
 
   const meta = [
-    boardName && `Board: ${boardName}`,
-    udiseCode && `UDISE: ${udiseCode}`,
-    phone     && `Ph: ${phone}`,
+    boardName      && `Board: ${boardName}`,
+    udiseCode      && `UDISE: ${udiseCode}`,
+    registrationNo && `Reg. No: ${registrationNo}`,
+    sscIndexNo     && `SSC Index: ${sscIndexNo}`,
+    schoolCode     && `School Code: ${schoolCode}`,
+    phone          && `Ph: ${phone}`,
   ].filter(Boolean).join('  |  ')
 
   const logoJustify = {
@@ -104,7 +112,7 @@ export default function LCHeader({
             textAlign:     'center',
             fontSize:      (cfg.schoolNameSize ?? 22) * 0.65,
             fontWeight:    600,
-            color:         '#333',
+            color:         organizationNameColor || '#333',
             letterSpacing: 0.5,
             marginBottom:  2,
           }}
@@ -134,7 +142,7 @@ export default function LCHeader({
               />
             </defs>
             <text
-              fill="#111"
+              fill={schoolNameColor || '#111'}
               fontSize={cfg.schoolNameSize}
               fontWeight="800"
               letterSpacing="0.5"
@@ -151,7 +159,7 @@ export default function LCHeader({
             ...textBlockStyle(cfg.schoolNameAlign, cfg.schoolNameOffsetX, cfg.schoolNameOffsetY),
             fontSize:      cfg.schoolNameSize,
             fontWeight:    800,
-            color:         '#111',
+            color:         schoolNameColor || '#111',
             letterSpacing: 0.5,
             marginBottom:  3,
           }}

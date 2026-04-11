@@ -103,6 +103,8 @@ function mapStudentRow(row) {
     status: row.status ?? 'active',
     dynamicFields,
     fullName: row.full_name ?? dynamicFields.studentName ?? '',
+    lcPrintedAt: row.lc_printed_at ?? null,
+    transferredAt: row.transferred_at ?? null,
     createdAt: row.student_created_at,
     updatedAt: row.student_updated_at,
     deletedAt: row.student_deleted_at ?? null,
@@ -143,6 +145,8 @@ function getStudentSelectSql() {
       s.academic_year,
       s.status,
       s.dynamic_fields,
+      s.lc_printed_at,
+      s.transferred_at,
       s.created_at AS student_created_at,
       s.updated_at AS student_updated_at,
       s.deleted_at AS student_deleted_at,
@@ -167,6 +171,23 @@ function getStudentSelectSql() {
 }
 
 function listStudents(database, instituteId = null) {
+  // Auto-transfer: students whose LC was printed 10+ days ago
+  const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+  const now = getNowIso()
+  const autoTransferSql = `
+    UPDATE students
+    SET status = 'transferred', transferred_at = ?, updated_at = ?
+    WHERE lc_printed_at IS NOT NULL
+      AND lc_printed_at <= ?
+      AND status != 'transferred'
+      AND deleted_at IS NULL
+      ${instituteId ? 'AND institute_id = ?' : ''}
+  `
+  const autoTransferParams = instituteId
+    ? [now, now, tenDaysAgo, instituteId]
+    : [now, now, tenDaysAgo]
+  database.prepare(autoTransferSql).run(...autoTransferParams)
+
   const rows = instituteId
     ? database.prepare(`
         ${getStudentSelectSql()}
@@ -406,6 +427,38 @@ function registerSchoolDataHandlers() {
       WHERE deleted_at IS NULL
     `).get()
     return Number(row?.total || 0)
+  })
+
+  ipcMain.handle('students:recordLCPrint', async (_event, studentId) => {
+    const database = getDb()
+    const now = getNowIso()
+    database.prepare(`
+      UPDATE students SET lc_printed_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL
+    `).run(now, now, studentId)
+    return true
+  })
+
+  ipcMain.handle('students:getNextAdmissionNo', async (_event, { instituteId }) => {
+    const database = getDb()
+    const year = new Date().getFullYear()
+    const prefix = `ADM-${year}-`
+
+    const rows = database.prepare(`
+      SELECT dynamic_fields FROM students
+      WHERE institute_id = ? AND deleted_at IS NULL
+    `).all(instituteId)
+
+    let maxSeq = 0
+    for (const row of rows) {
+      const df = safeParseJson(row.dynamic_fields, {})
+      const admNo = df.admissionNo || ''
+      if (admNo.startsWith(prefix)) {
+        const seq = parseInt(admNo.slice(prefix.length), 10)
+        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq
+      }
+    }
+
+    return `${prefix}${String(maxSeq + 1).padStart(3, '0')}`
   })
 
   ipcMain.handle('students:create', async (_event, payload) => {

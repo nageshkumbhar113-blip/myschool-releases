@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { ArrowLeft, Save, Loader2, AlertCircle, User, BookOpen, CreditCard, Image as ImageIcon } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, AlertCircle, User, BookOpen, CreditCard, Image as ImageIcon, RefreshCw } from 'lucide-react'
 import clsx from 'clsx'
 import useStudentStore from '../store/useStudentStore'
+import schoolDataService from '../services/schoolDataService'
 import useFieldStore from '../store/useFieldStore'
 import useSettingsStore from '../store/useSettingsStore'
 import { getCurrentInstituteId } from '../utils/dbHelpers'
@@ -45,6 +46,7 @@ export default function AddStudent() {
 
   const [photo, setPhoto] = useState(null)
   const [error, setError] = useState(null)
+  const [admissionNoLoading, setAdmissionNoLoading] = useState(false)
 
   const instituteId = getCurrentInstituteId()
   const studentProfileFields = useMemo(
@@ -160,6 +162,7 @@ export default function AddStudent() {
 
     reset({
       studentName: editingStudent.dynamicFields?.studentName ?? '',
+      admissionNo: editingStudent.dynamicFields?.admissionNo ?? '',
       dateOfBirth: editingStudent.dynamicFields?.dateOfBirth ?? '',
       gender: editingStudent.dynamicFields?.gender ?? '',
       studentId: editingStudent.dynamicFields?.studentId ?? '',
@@ -183,6 +186,24 @@ export default function AddStudent() {
 
     setPhoto(editingStudent.dynamicFields?.photo ?? null)
   }, [dynamicDefaultValues, editingStudent, feeStructure, feeStructureDefaults, reset])
+
+  const generateAdmissionNo = async () => {
+    if (!instituteId) return
+    setAdmissionNoLoading(true)
+    try {
+      const next = await schoolDataService.students.getNextAdmissionNo(instituteId)
+      setValue('admissionNo', next, { shouldDirty: true })
+    } catch {
+      // silently ignore
+    } finally {
+      setAdmissionNoLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isEditMode && instituteId) generateAdmissionNo()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, instituteId])
 
   const handlePhotoUpload = (event) => {
     const file = event.target.files[0]
@@ -217,6 +238,7 @@ export default function AddStudent() {
       const feeStructureAmounts = {}
 
       dynamicFields.studentName = data.studentName ?? ''
+      if (data.admissionNo) dynamicFields.admissionNo = data.admissionNo
       dynamicFields.dateOfBirth = data.dateOfBirth ?? ''
       dynamicFields.gender = data.gender ?? ''
       dynamicFields.studentId = data.studentId ?? ''
@@ -381,6 +403,27 @@ export default function AddStudent() {
                 placeholder="Student full name"
               />
               {errors.studentName && <p className="text-xs text-red-500 mt-1">{errors.studentName.message}</p>}
+            </div>
+            <div>
+              <label className="label">Admission No</label>
+              <div className="flex gap-2">
+                <input
+                  {...register('admissionNo')}
+                  className="input flex-1"
+                  placeholder="e.g. ADM-2026-001"
+                />
+                {!isEditMode && (
+                  <button
+                    type="button"
+                    onClick={generateAdmissionNo}
+                    disabled={admissionNoLoading}
+                    className="btn-secondary px-2.5 shrink-0"
+                    title="Generate new admission number"
+                  >
+                    <RefreshCw className={clsx('w-4 h-4', admissionNoLoading && 'animate-spin')} />
+                  </button>
+                )}
+              </div>
             </div>
             <div>
               <label className="label">Date of Birth</label>

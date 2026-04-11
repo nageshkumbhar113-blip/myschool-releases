@@ -163,6 +163,7 @@ export default function Students() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return students.filter(s => {
+      if (s.status === 'transferred') return false
       const name = (s.dynamicFields?.studentName ?? '').toLowerCase()
       const roll = (s.rollNumber ?? '').toLowerCase()
       if (q && !name.includes(q) && !roll.includes(q)) return false

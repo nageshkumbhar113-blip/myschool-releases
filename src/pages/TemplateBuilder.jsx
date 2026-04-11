@@ -1080,6 +1080,7 @@ export default function TemplateBuilder() {
   useEffect(() => {
     if (!activeTemplate || selectedType === 'admission') return
     if (!syncedDocumentContext.missingCount) return
+    if (!syncedDocumentContext.template?.fieldMappings) return
 
     updateActiveTemplate({
       fieldMappings: syncedDocumentContext.template.fieldMappings,

@@ -234,6 +234,8 @@ function ensureSchema(database) {
   addCol('ALTER TABLE institutes ADD COLUMN payment_amount REAL')
   addCol('ALTER TABLE institutes ADD COLUMN payment_date TEXT')
   addCol('ALTER TABLE institutes ADD COLUMN payment_status TEXT')
+  addCol('ALTER TABLE students ADD COLUMN lc_printed_at TEXT')
+  addCol('ALTER TABLE students ADD COLUMN transferred_at TEXT')
 }
 
 function getDb() {

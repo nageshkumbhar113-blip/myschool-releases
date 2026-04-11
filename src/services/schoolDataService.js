@@ -22,6 +22,12 @@ export const schoolDataService = {
     count(instituteId = null) {
       return ensureSchoolApi().students.count(instituteId)
     },
+    recordLCPrint(studentId) {
+      return ensureSchoolApi().students.recordLCPrint(studentId)
+    },
+    getNextAdmissionNo(instituteId) {
+      return ensureSchoolApi().students.getNextAdmissionNo(instituteId)
+    },
     create(payload) {
       return ensureSchoolApi().students.create(payload)
     },

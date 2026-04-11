@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom'
 import {
   Users, CreditCard, AlertCircle,
   TrendingUp, TrendingDown, ArrowRight,
-  RefreshCw, GraduationCap,
+  RefreshCw, GraduationCap, ArrowRightLeft,
 } from 'lucide-react'
 import { getCurrentInstituteId, getCurrentInstituteName, getStudents, getFees } from '../utils/dbHelpers'
 import clsx from 'clsx'
@@ -23,6 +23,7 @@ function StatCard({ title, value, subtitle, icon: Icon, color, trend, trendValue
     green:  'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
     red:    'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
     purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
+    orange: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
   }
   return (
     <div className="card p-5 flex flex-col gap-4">
@@ -96,7 +97,7 @@ export default function Dashboard() {
   const instituteId   = getCurrentInstituteId()
   const instituteName = getCurrentInstituteName()
 
-  const [stats,    setStats]    = useState({ students: 0, collected: 0, pending: 0 })
+  const [stats,    setStats]    = useState({ students: 0, transferred: 0, collected: 0, pending: 0 })
   const [recent,   setRecent]   = useState([])
   const [loading,  setLoading]  = useState(true)
 
@@ -117,10 +118,13 @@ export default function Dashboard() {
         feeMap[f.studentId] = f
       }
 
-      setStats({ students: students.length, collected, pending })
+      const activeCount     = students.filter(s => s.status !== 'transferred').length
+      const transferredCount = students.filter(s => s.status === 'transferred').length
+      setStats({ students: activeCount, transferred: transferredCount, collected, pending })
 
-      // Recent students — last 5 added
+      // Recent students — last 5 added (exclude transferred)
       const sorted = [...students]
+        .filter(s => s.status !== 'transferred')
         .sort((a, b) => new Date(b.createdAt ?? 0) - new Date(a.createdAt ?? 0))
         .slice(0, 5)
         .map(s => ({ ...s, fee: feeMap[s.id] ?? null }))
@@ -172,13 +176,21 @@ export default function Dashboard() {
       {instituteId && (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               title="Total Students"
               value={stats.students.toLocaleString()}
               subtitle="Active students this institute"
               icon={Users}
               color="blue"
+              loading={loading}
+            />
+            <StatCard
+              title="Transferred"
+              value={stats.transferred.toLocaleString()}
+              subtitle="Transferred after LC"
+              icon={ArrowRightLeft}
+              color="orange"
               loading={loading}
             />
             <StatCard

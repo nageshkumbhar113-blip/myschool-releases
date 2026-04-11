@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('schoolApi', {
     list: (instituteId) => ipcRenderer.invoke('students:list', instituteId ?? null),
     get: (studentId) => ipcRenderer.invoke('students:get', studentId),
     count: (instituteId) => ipcRenderer.invoke('students:count', instituteId ?? null),
+    recordLCPrint: (studentId) => ipcRenderer.invoke('students:recordLCPrint', studentId),
+    getNextAdmissionNo: (instituteId) => ipcRenderer.invoke('students:getNextAdmissionNo', { instituteId }),
     create: (payload) => ipcRenderer.invoke('students:create', payload),
     update: (studentId, changes) => ipcRenderer.invoke('students:update', { studentId, changes }),
     delete: (studentId) => ipcRenderer.invoke('students:delete', studentId),

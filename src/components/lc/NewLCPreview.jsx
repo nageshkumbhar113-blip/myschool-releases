@@ -13,10 +13,12 @@ export default function NewLCPreview({
   manualData = {},
   title,
   onClose,
+  onPrinted,
 }) {
   const { print } = usePrintDocument()
   const studentName = student?.dynamicFields?.studentName ?? 'Student'
   const { widthMm, heightMm } = getPageSizeConfig(template?.pageSize ?? 'A4')
+  const isLC = template?.type === 'lc'
 
   return (
     <>
@@ -55,12 +57,18 @@ export default function NewLCPreview({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => print(template?.pageSize ?? 'A4')}
+              onClick={() => { print(template?.pageSize ?? 'A4'); if (isLC) onPrinted?.() }}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
             >
               <Printer className="w-4 h-4" />
               Print / Save PDF
             </button>
+
+            {isLC && (
+              <span className="text-xs text-amber-500 dark:text-amber-400 hidden sm:inline">
+                LC print नंतर 10 दिवसांनी student transfer होईल
+              </span>
+            )}
 
             <button
               onClick={onClose}

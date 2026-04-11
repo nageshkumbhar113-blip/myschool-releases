@@ -333,12 +333,51 @@ export async function queryReceiptRegister(instituteId, filters = {}) {
   }
 }
 
+export async function queryTransferReport(instituteId, filters = {}) {
+  const { academicYear, class: cls, search, page = 1, pageSize = PAGE_SIZE } = filters
+  const all = await loadStudentsWithFees(instituteId)
+  const q = search?.trim().toLowerCase() ?? ''
+
+  const filtered = all.filter((student) => {
+    if (student.status !== 'transferred') return false
+    if (academicYear && student.academicYear !== academicYear) return false
+    if (cls && student.class !== cls) return false
+    if (q) {
+      const name = (student.dynamicFields?.studentName ?? '').toLowerCase()
+      const roll = (student.rollNumber ?? '').toLowerCase()
+      if (!name.includes(q) && !roll.includes(q)) return false
+    }
+    return true
+  })
+
+  filtered.sort((a, b) =>
+    (b.transferredAt ?? b.lcPrintedAt ?? '').localeCompare(a.transferredAt ?? a.lcPrintedAt ?? ''),
+  )
+
+  const rows = filtered.map((student, index) => ({
+    '#': index + 1,
+    'Name': student.dynamicFields?.studentName ?? '',
+    'Admission No': student.dynamicFields?.admissionNo ?? '',
+    'Roll No': student.rollNumber ?? '',
+    'Class': student.class ?? '',
+    'Academic Year': student.academicYear ?? '',
+    'LC Print Date': fmtDate(student.lcPrintedAt),
+    'Transfer Date': fmtDate(student.transferredAt),
+  }))
+
+  return {
+    ...paginate(rows, page, pageSize),
+    summary: { studentCount: filtered.length },
+  }
+}
+
 export const REPORT_RUNNERS = {
   student: queryStudentReport,
   collection: queryFeeCollectionReport,
   pending: queryPendingFeesReport,
   classwise: queryClassWiseReport,
   register: queryReceiptRegister,
+  transfer: queryTransferReport,
 }
 
 export async function runReport(type, instituteId, filters) {

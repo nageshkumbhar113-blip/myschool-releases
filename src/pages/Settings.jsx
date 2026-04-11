@@ -135,17 +135,22 @@ function Field({ label, name, value, onChange, placeholder, required, textarea }
 // ── Main component ─────────────────────────────────────────────────────────
 
 const EMPTY = {
-  organizationName: '',
-  schoolName:       '',
-  address:          '',
-  udiseCode:        '',
-  boardName:        '',
-  phone:            '',
-  principalName:    '',
-  clerkName:        '',
-  logo:             '',
-  signature:        '',
-  stamp:            '',
+  organizationName:      '',
+  organizationNameColor: '',
+  schoolName:            '',
+  schoolNameColor:       '',
+  address:               '',
+  udiseCode:             '',
+  boardName:             '',
+  phone:                 '',
+  registrationNo:        '',
+  sscIndexNo:            '',
+  schoolCode:            '',
+  principalName:         '',
+  clerkName:             '',
+  logo:                  '',
+  signature:             '',
+  stamp:                 '',
 }
 
 export default function Settings() {
@@ -192,17 +197,22 @@ export default function Settings() {
     if (!form.schoolName.trim()) return showToast('School name is required', 'error')
 
     const ok = await saveSettings(instituteId, {
-      organizationName: form.organizationName.trim(),
-      schoolName:       form.schoolName.trim(),
-      address:          form.address.trim(),
-      udiseCode:        form.udiseCode.trim(),
-      boardName:        form.boardName.trim(),
-      phone:            form.phone.trim(),
-      principalName:    form.principalName.trim(),
-      clerkName:        form.clerkName.trim(),
-      logo:             form.logo,
-      signature:        form.signature,
-      stamp:            form.stamp,
+      organizationName:      form.organizationName.trim(),
+      organizationNameColor: form.organizationNameColor,
+      schoolName:            form.schoolName.trim(),
+      schoolNameColor:       form.schoolNameColor,
+      address:               form.address.trim(),
+      udiseCode:             form.udiseCode.trim(),
+      boardName:             form.boardName.trim(),
+      phone:                 form.phone.trim(),
+      registrationNo:        form.registrationNo.trim(),
+      sscIndexNo:            form.sscIndexNo.trim(),
+      schoolCode:            form.schoolCode.trim(),
+      principalName:         form.principalName.trim(),
+      clerkName:             form.clerkName.trim(),
+      logo:                  form.logo,
+      signature:             form.signature,
+      stamp:                 form.stamp,
     })
 
     if (ok) {
@@ -260,21 +270,56 @@ export default function Settings() {
           <div className="card p-5">
             <SectionHeader icon={School} title="School Information" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Organization Name + color */}
               <div className="sm:col-span-2">
-                <Field
-                  label="Organization Name" name="organizationName"
-                  value={form.organizationName} onChange={handleChange}
-                  placeholder="e.g. Shri Dnyaneshwar Shikshan Sanstha"
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Organization Name</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text" name="organizationName"
+                      value={form.organizationName} onChange={handleChange}
+                      placeholder="e.g. Shri Dnyaneshwar Shikshan Sanstha"
+                      className="input text-sm py-2 flex-1"
+                    />
+                    <div className="flex flex-col items-center gap-0.5 shrink-0">
+                      <input
+                        type="color" name="organizationNameColor"
+                        value={form.organizationNameColor || '#333333'} onChange={handleChange}
+                        className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer p-0.5 bg-white dark:bg-gray-800"
+                        title="Organization name colour"
+                      />
+                      <span className="text-[10px] text-gray-400">Color</span>
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* School Name + color */}
               <div className="sm:col-span-2">
-                <Field
-                  label="School Name" name="schoolName"
-                  value={form.schoolName} onChange={handleChange}
-                  placeholder="e.g. Sunrise English Medium School"
-                  required
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    School Name<span className="text-red-500 ml-0.5">*</span>
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text" name="schoolName"
+                      value={form.schoolName} onChange={handleChange}
+                      placeholder="e.g. Sunrise English Medium School"
+                      className="input text-sm py-2 flex-1"
+                    />
+                    <div className="flex flex-col items-center gap-0.5 shrink-0">
+                      <input
+                        type="color" name="schoolNameColor"
+                        value={form.schoolNameColor || '#111111'} onChange={handleChange}
+                        className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer p-0.5 bg-white dark:bg-gray-800"
+                        title="School name colour"
+                      />
+                      <span className="text-[10px] text-gray-400">Color</span>
+                    </div>
+                  </div>
+                </div>
               </div>
+
               <div className="sm:col-span-2">
                 <Field
                   label="Address" name="address"
@@ -297,6 +342,21 @@ export default function Settings() {
                 label="Phone" name="phone"
                 value={form.phone} onChange={handleChange}
                 placeholder="e.g. +91 98765 43210"
+              />
+              <Field
+                label="Registration No." name="registrationNo"
+                value={form.registrationNo} onChange={handleChange}
+                placeholder="e.g. REG/2024/001"
+              />
+              <Field
+                label="SSC Index No." name="sscIndexNo"
+                value={form.sscIndexNo} onChange={handleChange}
+                placeholder="e.g. 123456"
+              />
+              <Field
+                label="School Code" name="schoolCode"
+                value={form.schoolCode} onChange={handleChange}
+                placeholder="e.g. 31201"
               />
             </div>
           </div>

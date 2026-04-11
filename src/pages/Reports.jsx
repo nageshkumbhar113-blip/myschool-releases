@@ -12,7 +12,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3, Users, CreditCard, AlertCircle,
-  FileText, RefreshCw, Download, Loader2,
+  FileText, RefreshCw, Download, Loader2, ArrowRightLeft,
 } from 'lucide-react'
 import useAppStore    from '../store/useAppStore'
 import ReportFilters  from '../components/ReportFilters'
@@ -59,7 +59,15 @@ const REPORT_TYPES = [
     color: 'indigo',
     desc:  'Full receipt ledger',
   },
+  {
+    key:   'transfer',
+    label: 'Transferred',
+    icon:  ArrowRightLeft,
+    color: 'orange',
+    desc:  'Students who left after LC',
+  },
 ]
+
 
 const TYPE_COLOR = {
   blue:   'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800',
@@ -67,6 +75,7 @@ const TYPE_COLOR = {
   red:    'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800',
   purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800',
   indigo: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800',
+  orange: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800',
 }
 
 const PAGE_SIZE = 50
@@ -98,8 +107,11 @@ function SummaryCards({ result, reportType }) {
     cards.push({ label: 'Total Pending',   value: fmt(s.totalPending),      icon: AlertCircle,color: 'red' })
   }
   if (reportType === 'register') {
-    cards.push({ label: 'Total Amount', value: fmt(s.totalAmount), icon: CreditCard, color: 'green' })
-    cards.push({ label: 'Receipts',     value: s.count,            icon: FileText,   color: 'indigo' })
+    cards.push({ label: 'Total Amount', value: fmt(s.totalAmount), icon: CreditCard,     color: 'green' })
+    cards.push({ label: 'Receipts',     value: s.count,            icon: FileText,       color: 'indigo' })
+  }
+  if (reportType === 'transfer') {
+    cards.push({ label: 'Transferred Students', value: s.studentCount, icon: ArrowRightLeft, color: 'orange' })
   }
 
   if (!cards.length) return null
