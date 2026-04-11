@@ -78,7 +78,7 @@ function getDefaultInputType(field) {
 }
 
 function ensureTemplateHasAllBodyFields(template, fields = []) {
-  if (!template) return { template, missingCount: 0 }
+  if (!template) return { template, fields, missingCount: 0 }
 
   const nextMappings = [...(template.fieldMappings ?? [])]
   const mappedIds = new Set(nextMappings.map((mapping) => mapping.fieldId))
@@ -108,13 +108,14 @@ function ensureTemplateHasAllBodyFields(template, fields = []) {
     appended += 1
   })
 
-  if (appended === 0) return { template, missingCount: 0 }
+  if (appended === 0) return { template, fields, missingCount: 0 }
 
   return {
     template: {
       ...template,
       fieldMappings: nextMappings,
     },
+    fields,
     missingCount: appended,
   }
 }
@@ -1181,7 +1182,7 @@ export default function TemplateBuilder() {
   }
 
   const previewTemplate = syncedDocumentContext.template ?? activeTemplate
-  const effectiveFields = syncedDocumentContext.fields
+  const effectiveFields = syncedDocumentContext.fields ?? fields
   const typeMeta     = TEMPLATE_TYPES.find(t => t.type === selectedType)
   const mappings     = previewTemplate?.fieldMappings ?? []
   const bodyMappings = mappings.filter(m => {
