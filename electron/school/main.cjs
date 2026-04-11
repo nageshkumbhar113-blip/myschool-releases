@@ -461,6 +461,17 @@ async function createWindow() {
   mainWindow.webContents.on('did-finish-load', () => {
     if (isSmokeTest) {
       safeRunSmoke()
+      return
+    }
+    // Delay update check so React components (UpdateNotification) are fully mounted
+    if (app.isPackaged) {
+      setTimeout(async () => {
+        try {
+          if (await checkInternet()) {
+            autoUpdater.checkForUpdates().catch(() => {})
+          }
+        } catch {}
+      }, 4000)
     }
   })
 
@@ -476,9 +487,7 @@ async function createWindow() {
     return
   }
 
-  if (app.isPackaged && await checkInternet()) {
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {})
-  }
+  // Update check is handled in did-finish-load with a delay
 }
 
 ipcMain.handle('read-license', async () => readLicenseFile())

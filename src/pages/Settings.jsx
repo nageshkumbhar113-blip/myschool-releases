@@ -13,7 +13,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Settings as SettingsIcon, Save, Loader2,
-  School, Users, Image, Upload, X, CheckCircle,
+  School, Users, Image, Upload, X, CheckCircle, RefreshCw,
 } from 'lucide-react'
 import useSettingsStore from '../store/useSettingsStore'
 import useAppStore      from '../store/useAppStore'
@@ -160,9 +160,23 @@ export default function Settings() {
   const instituteId = currentInstituteId || selectedInstitute || null
   const institute   = { name: currentInstituteName }
 
-  const [form,  setForm]  = useState(EMPTY)
-  const [toast, setToast] = useState(null)
-  const [dirty, setDirty] = useState(false)
+  const [form,        setForm]        = useState(EMPTY)
+  const [toast,       setToast]       = useState(null)
+  const [dirty,       setDirty]       = useState(false)
+  const [appVersion,  setAppVersion]  = useState('')
+  const [updateState, setUpdateState] = useState('idle') // idle | checking | available | latest | error
+
+  useEffect(() => {
+    const api = window.electronAPI
+    if (!api) return
+    api.getVersion?.().then(v => setAppVersion(v)).catch(() => {})
+    const unsubAvail = api.onUpdateAvailable?.((info) => {
+      setUpdateState('available:' + (info?.version ?? ''))
+    })
+    const unsubNone  = api.onUpdateNotAvailable?.(() => setUpdateState('latest'))
+    const unsubErr   = api.onUpdateError?.(() => setUpdateState('error'))
+    return () => { unsubAvail?.(); unsubNone?.(); unsubErr?.() }
+  }, [])
 
   // Load settings on mount / institute change
   useEffect(() => {
@@ -377,6 +391,46 @@ export default function Settings() {
               />
             </div>
           </div>
+
+          {/* App Update */}
+          {window.electronAPI && (
+            <div className="card p-5">
+              <SectionHeader icon={RefreshCw} title="App Update" />
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Current version: <span className="font-semibold text-gray-900 dark:text-white">v{appVersion || '…'}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUpdateState('checking')
+                    window.electronAPI.checkForUpdates?.()
+                  }}
+                  disabled={updateState === 'checking'}
+                  className={clsx(
+                    'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors',
+                    updateState === 'checking'
+                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+                      : 'bg-primary-600 hover:bg-primary-700 text-white'
+                  )}
+                >
+                  <RefreshCw className={clsx('w-4 h-4', updateState === 'checking' && 'animate-spin')} />
+                  {updateState === 'checking' ? 'Checking…' : 'Check for Updates'}
+                </button>
+                {updateState === 'latest' && (
+                  <span className="text-sm text-green-600 dark:text-green-400 font-medium">Latest version installed</span>
+                )}
+                {updateState?.startsWith('available:') && (
+                  <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                    v{updateState.split(':')[1]} available — check the notification banner
+                  </span>
+                )}
+                {updateState === 'error' && (
+                  <span className="text-sm text-red-500 font-medium">Update check failed</span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Images */}
           <div className="card p-5">
