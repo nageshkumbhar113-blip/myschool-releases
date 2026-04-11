@@ -23,6 +23,7 @@ const FormBuilder     = lazy(() => import('./pages/FormBuilder'))
 const TemplateBuilder = lazy(() => import('./pages/TemplateBuilder'))
 const Students        = lazy(() => import('./pages/Students'))
 const AddStudent      = lazy(() => import('./pages/AddStudent'))
+const FeeStructure    = lazy(() => import('./pages/FeeStructure'))
 const StudentDetail   = lazy(() => import('./pages/StudentDetail'))
 const Fees            = lazy(() => import('./pages/Fees'))
 const Receipts        = lazy(() => import('./pages/Receipts'))
@@ -80,6 +81,7 @@ export default function App() {
               <Route path="students/:id/edit" element={<AddStudent />} />
               <Route path="students/:id"    element={<StudentDetail />} />
               <Route path="fees"            element={<Fees />} />
+              <Route path="fee-structure"   element={<FeeStructure />} />
               <Route path="receipts"        element={<Receipts />} />
               <Route path="documents"       element={<Documents />} />
               <Route path="reports"         element={<Reports />} />

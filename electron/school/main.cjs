@@ -2,6 +2,23 @@
 const path = require('path')
 const http = require('http')
 const os = require('os')
+const BOOT_LOG = path.join(os.tmpdir(), 'my-school-boot.log')
+
+function bootLog(message) {
+  try {
+    fs.appendFileSync(BOOT_LOG, `[${new Date().toISOString()}] ${message}\n`, 'utf8')
+  } catch {}
+}
+
+bootLog('App start (main.cjs loaded)')
+
+process.on('uncaughtException', (error) => {
+  bootLog(`uncaughtException: ${error?.stack || error?.message || error}`)
+})
+
+process.on('unhandledRejection', (error) => {
+  bootLog(`unhandledRejection: ${error?.stack || error?.message || error}`)
+})
 const crypto = require('crypto')
 const dns = require('dns').promises
 const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron')
@@ -16,11 +33,65 @@ const DEFAULT_WIDTH = 1280
 const DEFAULT_HEIGHT = 800
 const MIN_WIDTH = 1024
 const MIN_HEIGHT = 600
+const SMOKE_TIMEOUT = 10000
 const isDev = !app.isPackaged
-const isSmokeTest = process.argv.includes('--smoke-test')
-const smokeExit = () => setTimeout(() => app.exit(0), 5000)
+const isSmokeTest = process.argv.includes('--smoke-test') || process.env.MY_SCHOOL_SMOKE_TEST === '1'
+let smokeReported = false
+
+function getSmokeReportPath() {
+  return process.env.MY_SCHOOL_SMOKE_REPORT
+    || path.join(app.getPath('temp'), 'my-school-smoke.json')
+}
+
+function writeSmokeReport(report) {
+  if (!isSmokeTest) return
+  const filePath = getSmokeReportPath()
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+  fs.writeFileSync(filePath, JSON.stringify({
+    ...report,
+    timestamp: new Date().toISOString(),
+  }, null, 2), 'utf8')
+}
+
+const smokeExit = () => setTimeout(() => {
+  logFail('Timeout', { app: 'school' })
+  process.exitCode = 1
+  app.exit(1)
+}, SMOKE_TIMEOUT)
+
+function logPass(data = {}) {
+  const payload = {
+    status: 'PASS',
+    type: 'SMOKE_TEST',
+    timestamp: new Date().toISOString(),
+    ...data,
+  }
+  if (!smokeReported) {
+    smokeReported = true
+    writeSmokeReport(payload)
+    console.log(JSON.stringify(payload))
+  }
+  return payload
+}
+
+function logFail(error, data = {}) {
+  const payload = {
+    status: 'FAIL',
+    type: 'SMOKE_TEST',
+    timestamp: new Date().toISOString(),
+    error: error?.message || error,
+    ...data,
+  }
+  if (!smokeReported) {
+    smokeReported = true
+    writeSmokeReport(payload)
+    console.error(JSON.stringify(payload))
+  }
+  return payload
+}
 
 if (isSmokeTest) {
+  bootLog('Smoke mode detected')
   const smokeDataDir = path.join(os.tmpdir(), 'my_school_app_smoke')
   fs.mkdirSync(smokeDataDir, { recursive: true })
   app.setPath('userData', smokeDataDir)
@@ -33,7 +104,10 @@ let staticServer = null
 let baseUrl = ''
 
 function resolveAppPath(...segments) {
-  return path.join(__dirname, '../..', ...segments)
+  const appRoot = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar')
+    : path.join(__dirname, '../..')
+  return path.join(appRoot, ...segments)
 }
 
 function getRuntimeIcon() {
@@ -156,6 +230,7 @@ function resolveDistRequestPath(distRoot, pathname) {
 }
 
 function startStaticServer() {
+  bootLog('startStaticServer start')
   const distRoot = resolveAppPath('dist')
   const indexFile = ensureBuiltAppExists(distRoot)
 
@@ -179,6 +254,7 @@ function startStaticServer() {
     staticServer.listen(0, '127.0.0.1', () => {
       const { port } = staticServer.address()
       baseUrl = `http://127.0.0.1:${port}`
+      bootLog(`startStaticServer listening on ${baseUrl}`)
       resolve(baseUrl)
     })
   })
@@ -190,6 +266,75 @@ function stopStaticServer() {
     staticServer = null
     baseUrl = ''
   }
+}
+
+function attachSmokeLogging(win, label) {
+  if (!isSmokeTest) return
+
+  win.webContents.on('console-message', (_event, level, message) => {
+    bootLog(`${label} console-message [${level}]: ${message}`)
+    console.log(`[${label}-console:${level}] ${message}`)
+  })
+  win.webContents.on('did-fail-load', (_event, code, description, validatedURL) => {
+    bootLog(`${label} did-fail-load: ${code} ${description} ${validatedURL}`)
+    console.error(`${label} did-fail-load: ${code} ${description} ${validatedURL}`)
+  })
+}
+
+function verifySchoolRuntime(win) {
+  bootLog('runSmokeTest START')
+  return win.webContents.executeJavaScript(`
+    new Promise((resolve) => {
+      const startedAt = Date.now()
+      let lastError = ''
+
+      const snapshot = (extra = {}) => ({
+        hasElectronApi: Boolean(window.electronAPI),
+        hasSchoolApi: Boolean(window.schoolApi),
+        pathname: window.location.pathname,
+        title: document.title,
+        pageText: (document.body?.innerText || '').slice(0, 200),
+        ...extra,
+      })
+
+      const check = async () => {
+        try {
+          const electronAPI = window.electronAPI ?? null
+          const schoolApi = window.schoolApi ?? null
+          const version = typeof electronAPI?.getVersion === 'function'
+            ? await electronAPI.getVersion()
+            : null
+          const dbInfo = typeof schoolApi?.diagnostics?.getDbInfo === 'function'
+            ? await schoolApi.diagnostics.getDbInfo()
+            : null
+          const licenseRecord = typeof schoolApi?.license?.getCurrent === 'function'
+            ? await schoolApi.license.getCurrent()
+            : undefined
+
+          if (electronAPI && schoolApi && typeof version === 'string' && version && dbInfo?.path) {
+            resolve(snapshot({
+              ok: true,
+              version,
+              dbPath: dbInfo.path,
+              licenseBridgeReachable: licenseRecord === null || typeof licenseRecord === 'object',
+            }))
+            return
+          }
+        } catch (error) {
+          lastError = error?.message || String(error)
+        }
+
+        if (Date.now() - startedAt > 10000) {
+          resolve(snapshot({ ok: false, lastError }))
+          return
+        }
+
+        setTimeout(check, 100)
+      }
+
+      check()
+    })
+  `)
 }
 
 function sendUpdateEvent(channel, payload) {
@@ -232,6 +377,7 @@ function lockDownWindow(win) {
 }
 
 async function createWindow() {
+  bootLog('createWindow start')
   await startStaticServer()
 
   mainWindow = new BrowserWindow({
@@ -254,8 +400,10 @@ async function createWindow() {
       devTools: isDev,
     },
   })
+  bootLog('BrowserWindow created')
 
   lockDownWindow(mainWindow)
+  attachSmokeLogging(mainWindow, 'school')
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
@@ -263,17 +411,70 @@ async function createWindow() {
   })
 
   mainWindow.webContents.on('did-finish-load', () => {
+    bootLog('did-finish-load fired')
     mainWindow.webContents.executeJavaScript("console.log('App loaded successfully')").catch(() => {})
   })
 
-  if (isSmokeTest) {
-    mainWindow.webContents.once('did-finish-load', () => {
-      console.log('MY_School App Electron smoke test passed.')
+  let smokeRan = false
+  let smokeTimer = null
+  let resolveSmoke
+  let rejectSmoke
+  const smokeDone = isSmokeTest
+    ? new Promise((resolve, reject) => {
+      resolveSmoke = resolve
+      rejectSmoke = reject
+    })
+    : null
+
+  function safeRunSmoke() {
+    if (!isSmokeTest || smokeRan) return
+    smokeRan = true
+    bootLog('safeRunSmoke invoked')
+
+    verifySchoolRuntime(mainWindow).then((result) => {
+      if (!result?.ok) {
+        throw new Error(`School smoke test failed: ${JSON.stringify(result)}`)
+      }
+
+      clearTimeout(smokeTimer)
+      const payload = logPass({
+        app: 'school',
+        version: result.version,
+        dbPath: result.dbPath,
+        hasElectronApi: result.hasElectronApi,
+        hasSchoolApi: result.hasSchoolApi,
+        licenseBridgeReachable: result.licenseBridgeReachable,
+      })
+      bootLog(`smoke PASS: ${JSON.stringify(payload)}`)
       setTimeout(() => app.quit(), 1200)
+      resolveSmoke?.(payload)
+    }).catch((error) => {
+      clearTimeout(smokeTimer)
+      const payload = logFail(error, { app: 'school' })
+      bootLog(`smoke FAIL: ${JSON.stringify(payload)}`)
+      process.exitCode = 1
+      app.exit(1)
+      rejectSmoke?.(payload)
     })
   }
 
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (isSmokeTest) {
+      safeRunSmoke()
+    }
+  })
+
+  if (isSmokeTest) {
+    smokeTimer = smokeExit()
+  }
+
   await mainWindow.loadURL(baseUrl)
+  bootLog(`loadURL complete: ${baseUrl}`)
+
+  if (isSmokeTest) {
+    await smokeDone
+    return
+  }
 
   if (app.isPackaged && await checkInternet()) {
     autoUpdater.checkForUpdatesAndNotify().catch(() => {})
@@ -300,6 +501,7 @@ ipcMain.on('download-update', () => {
 
 
 app.whenReady().then(async () => {
+  bootLog('app.whenReady')
   if (isSmokeTest) smokeExit()
   setupAutoUpdater()
   getDb()
@@ -314,6 +516,8 @@ app.whenReady().then(async () => {
     }
   })
 }).catch((error) => {
+  bootLog(`startup catch: ${error?.stack || error?.message || error}`)
+  if (isSmokeTest) logFail(error, { app: 'school' })
   console.error('Failed to start MY_School App Electron shell:', error)
   process.exitCode = 1
   app.quit()
@@ -324,9 +528,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  bootLog('before-quit')
   closeDb()
   stopStaticServer()
 })
-
-
-

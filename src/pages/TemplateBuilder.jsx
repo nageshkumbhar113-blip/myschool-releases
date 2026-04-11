@@ -2,7 +2,7 @@
  * TemplateBuilder.jsx — Simple Clean Version with Header Config
  *
  * Flow:
- *  1. Opening screen → 3 cards (LC / Bonafide / Fee Receipt)
+ *  1. Opening screen -> 3 cards (LC / Bonafide / Admission)
  *  2. Editor:
  *     Left panel: Header Config (sliders) + Body Fields list
  *     Right: Live Preview
@@ -11,9 +11,9 @@
  * Body → Simple ordered list, up/down buttons, add/remove.
  */
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  FileText, Award, Receipt, LayoutTemplate,
+  FileText, Award, LayoutTemplate,
   ArrowLeft, Eye, EyeOff, Save, Trash2,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, X,
   CheckCircle, Star, Loader2, AlertCircle,
@@ -29,9 +29,11 @@ import { DEFAULT_HEADER_CONFIG, HEADER_ALIGNMENTS } from '../utils/headerConfig'
 import { PAGE_SIZE_OPTIONS } from '../utils/pageSizes'
 import { MOCK_MANUAL, MOCK_SETTINGS, MOCK_STUDENT } from '../utils/mockData'
 import { buildReceiptTemplateSettings, buildReceiptTemplateStudent } from '../utils/receiptTemplateData'
+import { ensureLcBonafidePrintFields } from '../utils/documentTemplateDefaults'
 import {
   ADMISSION_ALWAYS_INCLUDED_FIELDS,
   ADMISSION_OPTIONAL_FIELDS,
+  getAdmissionSelectableFields,
   countSelectedAdmissionFields,
   getSelectedAdmissionFieldKeys,
 } from '../utils/admissionFieldCatalog'
@@ -42,7 +44,6 @@ import clsx             from 'clsx'
 const TEMPLATE_TYPES = [
   { type: 'lc',       label: 'Leaving Certificate',  subtitle: 'Student exit document',       icon: FileText, color: 'indigo', fields: 22 },
   { type: 'bonafide', label: 'Bonafide Certificate',  subtitle: 'Proof of enrollment',         icon: Award,    color: 'amber',  fields: 10 },
-  { type: 'receipt',  label: 'Fee Receipt',           subtitle: 'Payment receipt with amount', icon: Receipt,  color: 'green',  fields: 9  },
   { type: 'admission', label: 'Admission Form',       subtitle: 'Choose Add Student fields',   icon: GraduationCap, color: 'blue', fields: ADMISSION_OPTIONAL_FIELDS.length },
 ]
 
@@ -56,11 +57,66 @@ const COLOR = {
 const SETTINGS_KEYS = new Set(['schoolName','address','logo','udiseCode','boardName','phone','principalName','clerkName','signature','stamp'])
 const MANUAL_KEYS   = new Set(['reasonForLeaving','remark','dateOfIssue','purpose'])
 const REQUIRED_KEYS = new Set(['studentName','dateOfBirth'])
+const AUTO_MAPPING_PROPS = {
+  width: 25,
+  height: 5,
+  fontSize: 12,
+  fontWeight: 'normal',
+  color: '#000000',
+}
 
 function getFieldSource(key) {
   if (SETTINGS_KEYS.has(key)) return 'settings'
   if (MANUAL_KEYS.has(key))   return 'manual'
   return 'student'
+}
+
+function getDefaultInputType(field) {
+  if (field?.type === 'date') return 'date'
+  if (field?.type === 'textarea') return 'textarea'
+  return 'text'
+}
+
+function ensureTemplateHasAllBodyFields(template, fields = []) {
+  if (!template) return { template, missingCount: 0 }
+
+  const nextMappings = [...(template.fieldMappings ?? [])]
+  const mappedIds = new Set(nextMappings.map((mapping) => mapping.fieldId))
+  let nextY = nextMappings.length
+  let appended = 0
+
+  fields.forEach((field) => {
+    if (!field || field.deletedAt) return
+    if (field.type === 'static') return
+    if (SETTINGS_KEYS.has(field.key)) return
+    if (mappedIds.has(field.id)) return
+
+    nextMappings.push({
+      fieldId: field.id,
+      x: 10,
+      y: Math.min(10 + nextY * 6, 90),
+      ...AUTO_MAPPING_PROPS,
+      height: field.type === 'textarea' ? 8 : field.type === 'image' ? 12 : AUTO_MAPPING_PROPS.height,
+      zIndex: nextMappings.length + 1,
+      fieldSource: getFieldSource(field.key),
+      inputType: getDefaultInputType(field),
+      required: Boolean(field.validation?.required),
+    })
+
+    mappedIds.add(field.id)
+    nextY += 1
+    appended += 1
+  })
+
+  if (appended === 0) return { template, missingCount: 0 }
+
+  return {
+    template: {
+      ...template,
+      fieldMappings: nextMappings,
+    },
+    missingCount: appended,
+  }
 }
 
 // ── Opening Screen ────────────────────────────────────────────────────────
@@ -538,8 +594,62 @@ function AdmissionTypeSelector({ templates, fields, onSelect, loading }) {
   )
 }
 
-function AdmissionFieldSelector({ selectedKeys, onToggle, onSelectAll, onClear }) {
+function AdmissionFieldSelector({ fields, selectedKeys, onToggle, onSelectAll, onClear }) {
   const selected = new Set(selectedKeys)
+  const selectableFields = getAdmissionSelectableFields(fields)
+  const predefinedFields = selectableFields.filter((field) => !field.isCustom)
+  const customFields = selectableFields.filter((field) => field.isCustom)
+
+  const getTypeLabel = (field) => (
+    field.type === 'date'
+      ? 'Date'
+      : field.type === 'textarea'
+        ? 'Textarea'
+        : field.type === 'select'
+          ? 'Dropdown'
+          : field.type === 'number'
+            ? 'Number'
+            : field.type === 'image'
+              ? 'Image'
+              : 'Text'
+  )
+
+  const renderSelectableField = (field, activeClass, inactiveClass, badgeClass) => {
+    const checked = selected.has(field.key)
+
+    return (
+      <label
+        key={field.key}
+        className={clsx(
+          'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors',
+          checked ? activeClass : inactiveClass
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={() => onToggle(field.key)}
+          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-gray-900 dark:text-white">{field.label}</span>
+            {field.sources.map((source) => (
+              <span
+                key={`${field.key}-${source}`}
+                className={badgeClass}
+              >
+                {source}
+              </span>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Type: {getTypeLabel(field)}
+          </p>
+        </div>
+      </label>
+    )
+  }
 
   return (
     <div className="card p-4 space-y-4">
@@ -573,50 +683,43 @@ function AdmissionFieldSelector({ selectedKeys, onToggle, onSelectAll, onClear }
       </div>
 
       <div className="space-y-2">
-        {ADMISSION_OPTIONAL_FIELDS.map((field) => {
-          const checked = selected.has(field.key)
-          return (
-            <label
-              key={field.key}
-              className={clsx(
-                'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors',
-                checked
-                  ? 'border-blue-300 bg-blue-50/80 dark:border-blue-700 dark:bg-blue-900/20'
-                  : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700'
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => onToggle(field.key)}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{field.label}</span>
-                  {field.sources.map((source) => (
-                    <span
-                      key={`${field.key}-${source}`}
-                      className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                    >
-                      {source}
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Type: {field.type === 'date' ? 'Date' : field.type === 'textarea' ? 'Textarea' : 'Text'}
-                </p>
-              </div>
-            </label>
-          )
-        })}
+        {predefinedFields.map((field) => renderSelectableField(
+          field,
+          'border-blue-300 bg-blue-50/80 dark:border-blue-700 dark:bg-blue-900/20',
+          'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700',
+          'rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        <div>
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">Custom Form Builder Fields</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Form Builder madhe navin field create kelat ki te ithe disel. Tick kelavarach Add Student madhye yeil.
+          </p>
+        </div>
+
+        {customFields.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-200 px-4 py-5 text-center text-xs text-gray-400 dark:border-gray-700">
+            Ajun custom fields nahi. Form Builder madhe field add kara.
+          </div>
+        ) : (
+          customFields.map((field) => renderSelectableField(
+            field,
+            'border-emerald-300 bg-emerald-50/80 dark:border-emerald-700 dark:bg-emerald-900/20',
+            'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700',
+            'rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+          ))
+        )}
       </div>
     </div>
   )
 }
 
-function AdmissionPreview({ selectedKeys }) {
-  const selected = ADMISSION_OPTIONAL_FIELDS.filter((field) => selectedKeys.includes(field.key))
+function AdmissionPreview({ fields, selectedKeys }) {
+  const selected = getAdmissionSelectableFields(fields).filter((field) => selectedKeys.includes(field.key))
+  const selectedPredefined = selected.filter((field) => !field.isCustom)
+  const selectedCustom = selected.filter((field) => field.isCustom)
 
   return (
     <div className="space-y-4">
@@ -655,7 +758,7 @@ function AdmissionPreview({ selectedKeys }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
-            {selected.map((field) => (
+            {selectedPredefined.map((field) => (
               <div
                 key={field.key}
                 className="rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900"
@@ -670,6 +773,21 @@ function AdmissionPreview({ selectedKeys }) {
                       {source}
                     </span>
                   ))}
+                </div>
+                <div className="mt-2 h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 dark:border-gray-700 dark:bg-gray-800" />
+              </div>
+            ))}
+
+            {selectedCustom.map((field) => (
+              <div
+                key={field.key}
+                className="rounded-xl border border-emerald-200 bg-white px-4 py-3 dark:border-emerald-800 dark:bg-gray-900"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{field.label}</p>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    Form Builder
+                  </span>
                 </div>
                 <div className="mt-2 h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 dark:border-gray-700 dark:bg-gray-800" />
               </div>
@@ -780,6 +898,9 @@ export default function TemplateBuilder() {
       try {
         const selectedKeys = new Set(admissionSelection)
         const currentFields = useFieldStore.getState().fields
+        const selectableKeys = new Set(
+          getAdmissionSelectableFields(currentFields).map((field) => field.key)
+        )
         let nextOrder =
           currentFields.reduce((max, field) => Math.max(max, field.meta?.order ?? -1), -1) + 1
 
@@ -820,6 +941,22 @@ export default function TemplateBuilder() {
             if (wasVisible !== shouldShow || !wasManaged) {
               await useFieldStore.getState().updateField(existing.id, { meta: nextMeta })
             }
+          }
+        }
+
+        for (const field of currentFields) {
+          if (!selectableKeys.has(field.key)) continue
+          if (ADMISSION_OPTIONAL_FIELDS.some((config) => config.key === field.key)) continue
+
+          const shouldShow = selectedKeys.has(field.key)
+          const nextMeta = {
+            ...(field.meta ?? {}),
+            showInAdmissionForm: shouldShow,
+          }
+          const wasVisible = field.meta?.showInAdmissionForm !== false
+
+          if (wasVisible !== shouldShow) {
+            await useFieldStore.getState().updateField(field.id, { meta: nextMeta })
           }
         }
 
@@ -922,14 +1059,38 @@ export default function TemplateBuilder() {
   }, [])
 
   const handleSelectAllAdmissionFields = useCallback(() => {
-    setAdmissionSelection(ADMISSION_OPTIONAL_FIELDS.map((field) => field.key))
+    setAdmissionSelection(getAdmissionSelectableFields(fields).map((field) => field.key))
     setIsDirty(true)
-  }, [])
+  }, [fields])
 
   const handleClearAdmissionFields = useCallback(() => {
     setAdmissionSelection([])
     setIsDirty(true)
   }, [])
+
+  const documentFieldContext = useMemo(
+    () => ensureLcBonafidePrintFields(activeTemplate, fields, { includeMissingMappings: false }),
+    [activeTemplate, fields]
+  )
+  const syncedDocumentContext = useMemo(
+    () => ensureTemplateHasAllBodyFields(documentFieldContext.template ?? activeTemplate, documentFieldContext.fields),
+    [activeTemplate, documentFieldContext]
+  )
+
+  useEffect(() => {
+    if (!activeTemplate || selectedType === 'admission') return
+    if (!syncedDocumentContext.missingCount) return
+
+    updateActiveTemplate({
+      fieldMappings: syncedDocumentContext.template.fieldMappings,
+    })
+    setIsDirty(true)
+  }, [
+    activeTemplate,
+    selectedType,
+    syncedDocumentContext,
+    updateActiveTemplate,
+  ])
 
   if (!instituteId) {
     return (
@@ -987,6 +1148,7 @@ export default function TemplateBuilder() {
         <div className="grid flex-1 min-h-0 grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
           <div className="min-h-0 overflow-y-auto pr-1">
             <AdmissionFieldSelector
+              fields={fields}
               selectedKeys={admissionSelection}
               onToggle={handleToggleAdmissionField}
               onSelectAll={handleSelectAllAdmissionFields}
@@ -996,7 +1158,7 @@ export default function TemplateBuilder() {
 
           <div className="min-h-0 overflow-y-auto">
             <div className="mx-auto w-full max-w-xl">
-              <AdmissionPreview selectedKeys={admissionSelection} />
+              <AdmissionPreview fields={fields} selectedKeys={admissionSelection} />
               <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
                 Total optional fields enabled: <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedCount}</span>
               </div>
@@ -1017,10 +1179,12 @@ export default function TemplateBuilder() {
     )
   }
 
+  const previewTemplate = syncedDocumentContext.template ?? activeTemplate
+  const effectiveFields = syncedDocumentContext.fields
   const typeMeta     = TEMPLATE_TYPES.find(t => t.type === selectedType)
-  const mappings     = activeTemplate?.fieldMappings ?? []
+  const mappings     = previewTemplate?.fieldMappings ?? []
   const bodyMappings = mappings.filter(m => {
-    const f = fields.find(x => x.id === m.fieldId)
+    const f = effectiveFields.find(x => x.id === m.fieldId)
     return f && !SETTINGS_KEYS.has(f.key) && f.type !== 'static'
   })
 
@@ -1119,7 +1283,7 @@ export default function TemplateBuilder() {
                 </div>
               ) : (
                 bodyMappings.map((mapping, i) => {
-                  const field  = fields.find(f => f.id === mapping.fieldId)
+                  const field  = effectiveFields.find(f => f.id === mapping.fieldId)
                   const isReq  = REQUIRED_KEYS.has(field?.key)
                   return (
                     <FieldRow
@@ -1138,7 +1302,7 @@ export default function TemplateBuilder() {
               )}
             </div>
 
-            <AddFieldPanel fields={fields} templateMappings={mappings} onAdd={handleAddField} />
+            <AddFieldPanel fields={effectiveFields} templateMappings={mappings} onAdd={handleAddField} />
           </div>
           )}
 
@@ -1177,8 +1341,8 @@ export default function TemplateBuilder() {
               </div>
             )}
             <LivePreview
-              template={activeTemplate}
-              fields={fields}
+              template={previewTemplate}
+              fields={effectiveFields}
               settings={settings}
               docType={selectedType}
               headerConfig={headerConfig}

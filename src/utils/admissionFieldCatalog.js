@@ -1,7 +1,13 @@
+import { isAdmissionOptionalFieldCandidate } from './studentFieldFilter'
+
 export const ADMISSION_ALWAYS_INCLUDED_FIELDS = [
   'Full Name',
   'Date of Birth',
   'Gender',
+  'Student ID',
+  'UID (Adhar No)',
+  'Mother Tongue',
+  'Reg. No.',
   'Photo',
   'Roll Number',
   'Class',
@@ -32,8 +38,29 @@ export const ADMISSION_OPTIONAL_FIELDS = [
   { key: 'mobileNumber',     label: 'Mobile Number',          type: 'text', validation: { required: false, maxLength: 20 },  sources: ['Admission'] },
 ]
 
+const PREDEFINED_ADMISSION_KEYS = new Set(
+  ADMISSION_OPTIONAL_FIELDS.map((field) => field.key)
+)
+
+export function getAdmissionSelectableFields(fields = []) {
+  const customFields = fields
+    .filter((field) => !field?.deletedAt)
+    .filter(isAdmissionOptionalFieldCandidate)
+    .filter((field) => !PREDEFINED_ADMISSION_KEYS.has(field.key))
+    .map((field) => ({
+      key: field.key,
+      label: field.label,
+      type: field.type,
+      validation: { ...(field.validation ?? {}) },
+      sources: ['Form Builder'],
+      isCustom: true,
+    }))
+
+  return [...ADMISSION_OPTIONAL_FIELDS, ...customFields]
+}
+
 export function getSelectedAdmissionFieldKeys(fields = []) {
-  return ADMISSION_OPTIONAL_FIELDS
+  return getAdmissionSelectableFields(fields)
     .filter((item) => {
       const existing = fields.find((field) => field.key === item.key && !field.deletedAt)
       if (!existing) return false

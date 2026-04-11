@@ -1,5 +1,6 @@
-﻿import { create } from 'zustand'
+import { create } from 'zustand'
 import schoolDataService from '../services/schoolDataService'
+import { buildDefaultFieldsForInstitute } from '../utils/defaultFieldCatalog'
 
 const useFieldStore = create((set) => ({
   fields: [],
@@ -10,9 +11,28 @@ const useFieldStore = create((set) => ({
     set({ loading: true, error: null })
     try {
       const rows = await schoolDataService.fields.list(instituteId)
+
+      if (rows.length === 0 && instituteId) {
+        const defaultFields = buildDefaultFieldsForInstitute(instituteId)
+        const seeded = []
+
+        for (const fieldDef of defaultFields) {
+          const record = await schoolDataService.fields.create(fieldDef)
+          seeded.push(record)
+        }
+
+        set({
+          fields: seeded.sort((a, b) => (a.meta?.order ?? 0) - (b.meta?.order ?? 0)),
+          loading: false,
+        })
+        return seeded
+      }
+
       set({ fields: rows, loading: false })
+      return rows
     } catch (err) {
       set({ error: err.message, loading: false })
+      return []
     }
   },
 

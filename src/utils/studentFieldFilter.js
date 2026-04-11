@@ -37,6 +37,16 @@ const RESERVED_FORM_KEYS = new Set([
   'effectiveFee',
   'paidAmount',
   'remainingAmount',
+  'studentId',
+  'uidAadharNo',
+  'motherTongue',
+  'resistorNo',
+  'receiptNo',
+  'receiptDate',
+  'amountPaid',
+  'remainingBalance',
+  'studyingSince',
+  'paymentMode',
   'leavingDate',
   'studentPhoto',
   'result',
@@ -54,6 +64,11 @@ export function isStudentProfileField(field) {
 export function isCustomStudentProfileField(field) {
   if (!isStudentProfileField(field)) return false
   if (field.meta?.showInAdmissionForm === false) return false
+  return !BUILTIN_STUDENT_KEYS.has(field.key)
+}
+
+export function isAdmissionOptionalFieldCandidate(field) {
+  if (!isStudentProfileField(field)) return false
   return !BUILTIN_STUDENT_KEYS.has(field.key)
 }
 

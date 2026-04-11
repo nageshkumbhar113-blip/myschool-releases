@@ -21,7 +21,7 @@ const useStudentStore = create((set) => ({
   },
 
   loadStudent: async (studentId) => {
-    set({ loading: true, error: null })
+    set({ loading: true, error: null, activeStudent: null })
     try {
       const student = await schoolDataService.students.get(studentId)
       if (!student) throw new Error('Student not found')

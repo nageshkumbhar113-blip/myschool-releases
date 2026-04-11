@@ -26,6 +26,21 @@ export default function AdmissionFormPreview({
   const schoolAddress = settings?.address ?? ''
   const photo = dynamicFields.photo ?? null
   const studentName = dynamicFields.studentName ?? 'Student'
+  const primaryRows = [
+    ['Student Name', dynamicFields.studentName],
+    ['Date of Birth', dynamicFields.dateOfBirth],
+    ['Gender', dynamicFields.gender],
+    ['Student ID', dynamicFields.studentId],
+    ['UID (Adhar No)', dynamicFields.uidAadharNo],
+    ['Mother Tongue', dynamicFields.motherTongue],
+    ['Reg. No.', dynamicFields.resistorNo],
+    ['Roll Number', student?.rollNumber],
+    ['Class', student?.class],
+    ['Medium', student?.medium],
+    ['Board', student?.board],
+    ['Academic Year', student?.academicYear],
+    ['Status', student?.status],
+  ]
 
   return (
     <>
@@ -53,15 +68,9 @@ export default function AdmissionFormPreview({
 
           <div style={{ display: 'grid', gridTemplateColumns: photo ? '1fr 110px' : '1fr', gap: '8mm', marginBottom: '8mm' }}>
             <div style={{ border: '1px solid #d1d5db' }}>
-              <Row label="Student Name" value={dynamicFields.studentName} />
-              <Row label="Date of Birth" value={dynamicFields.dateOfBirth} />
-              <Row label="Gender" value={dynamicFields.gender} />
-              <Row label="Roll Number" value={student?.rollNumber} />
-              <Row label="Class" value={student?.class} />
-              <Row label="Medium" value={student?.medium} />
-              <Row label="Board" value={student?.board} />
-              <Row label="Academic Year" value={student?.academicYear} />
-              <Row label="Status" value={student?.status} />
+              {primaryRows.map(([label, value]) => (
+                <Row key={label} label={label} value={value} />
+              ))}
             </div>
 
             {photo && (
@@ -149,14 +158,9 @@ export default function AdmissionFormPreview({
             <div className="p-6 space-y-6">
               <div className="grid gap-6 md:grid-cols-[1fr_140px]">
                 <div className="rounded-xl border border-gray-200 overflow-hidden">
-                  <Row label="Student Name" value={dynamicFields.studentName} />
-                  <Row label="Date of Birth" value={dynamicFields.dateOfBirth} />
-                  <Row label="Gender" value={dynamicFields.gender} />
-                  <Row label="Roll Number" value={student?.rollNumber} />
-                  <Row label="Class" value={student?.class} />
-                  <Row label="Medium" value={student?.medium} />
-                  <Row label="Board" value={student?.board} />
-                  <Row label="Academic Year" value={student?.academicYear} />
+                  {primaryRows.map(([label, value]) => (
+                    <Row key={label} label={label} value={value} />
+                  ))}
                 </div>
                 {photo && (
                   <div className="rounded-xl border border-gray-200 p-2">

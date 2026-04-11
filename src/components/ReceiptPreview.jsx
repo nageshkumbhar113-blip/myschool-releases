@@ -1,24 +1,17 @@
-/**
- * ReceiptPreview.jsx
- *
- * Preview modal for fee receipts.
- * When an active receipt template is available, the preview uses the same
- * DocumentRenderer path as builder/print. Otherwise it falls back to the
- * legacy styled receipt card.
- */
-
 import React from 'react'
-import { X, Download, MessageCircle, Loader2, Printer } from 'lucide-react'
+import { X, Download, MessageCircle, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
-import DocumentRenderer from './DocumentRenderer'
+import { formatReceiptParticularAmount, getFeeStructure } from '../utils/feeStructure'
 
-const fmt = (n) => `₹${Number(n ?? 0).toLocaleString('en-IN')}`
+const fmt = (n) => `Rs.${Number(n ?? 0).toLocaleString('en-IN')}`
 
 const fmtDate = (d) => {
   if (!d) return '-'
   try {
     return new Date(d).toLocaleDateString('en-IN', {
-      day: '2-digit', month: 'short', year: 'numeric',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
     })
   } catch {
     return String(d)
@@ -37,28 +30,31 @@ function Row({ label, value, valueClass }) {
 function LegacyReceiptCard({ data }) {
   const { institute, student, receipt, fee } = data
 
-  const instituteName    = institute?.name ?? 'School Name'
+  const instituteName = institute?.name ?? 'School Name'
   const instituteAddress = institute?.address ?? ''
-  const institutePhone   = institute?.phone ?? ''
+  const institutePhone = institute?.phone ?? ''
 
-  const studentName  = student?.dynamicFields?.studentName ?? 'N/A'
+  const studentName = student?.dynamicFields?.studentName ?? 'N/A'
   const studentClass = student?.class ?? '-'
-  const rollNumber   = student?.rollNumber ?? '-'
+  const rollNumber = student?.rollNumber ?? '-'
 
-  const receiptNo   = receipt?.receiptNumber ?? '-'
+  const receiptNo = receipt?.receiptNumber ?? '-'
   const receiptDate = fmtDate(receipt?.paymentDate ?? receipt?.createdAt)
-  const amount      = Number(receipt?.amount ?? 0)
+  const amount = Number(receipt?.amount ?? 0)
   const paymentMode = receipt?.paymentMode ?? 'Cash'
-  const instNum     = receipt?.installmentNumber ?? '-'
+  const installmentNumber = receipt?.installmentNumber ?? '-'
 
-  const allInstallments  = fee?.installments ?? []
-  const prevInstallments = allInstallments.filter(i => i.receiptId !== receipt?.id)
+  const allInstallments = fee?.installments ?? []
+  const previousInstallments = allInstallments.filter((item) => item.receiptId !== receipt?.id)
 
-  const totalFee  = fee?.totalFee ?? 0
-  const discount  = fee?.discount ?? 0
+  const totalFee = fee?.totalFee ?? 0
+  const discount = fee?.discount ?? 0
   const totalPaid = fee?.paidAmount ?? 0
   const remaining = fee?.remainingAmount ?? 0
-  const isPaid    = remaining <= 0
+  const isPaid = remaining <= 0
+
+  const particulars = getFeeStructure({ feeStructure: institute?.feeStructure ?? [] })
+  const particularAmounts = student?.dynamicFields?.feeStructureAmounts ?? {}
 
   return (
     <div className="space-y-4 text-sm">
@@ -98,7 +94,7 @@ function LegacyReceiptCard({ data }) {
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Installment #</span>
-          <span className="text-gray-700 dark:text-gray-300">{instNum}</span>
+          <span className="text-gray-700 dark:text-gray-300">{installmentNumber}</span>
         </div>
       </div>
 
@@ -107,16 +103,43 @@ function LegacyReceiptCard({ data }) {
         <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{fmt(amount)}</p>
       </div>
 
-      {prevInstallments.length > 0 && (
+      <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Receipt Particulars
+        </div>
+        <div className="grid grid-cols-[56px_1fr_96px] text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/70 dark:bg-gray-800/40 border-b border-gray-200 dark:border-gray-700">
+          <div className="px-3 py-2">Sr.</div>
+          <div className="px-3 py-2">Particular</div>
+          <div className="px-3 py-2 text-right">Amount</div>
+        </div>
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          {particulars.map((item, index) => (
+            <div key={item.key} className="grid grid-cols-[56px_1fr_96px] text-sm">
+              <div className="px-3 py-2.5 font-mono text-gray-500">{String(index + 1).padStart(2, '0')}</div>
+              <div className="px-3 py-2.5 text-gray-900 dark:text-white">{item.label}</div>
+              <div className="px-3 py-2.5 text-right font-medium text-gray-700 dark:text-gray-300">
+                {formatReceiptParticularAmount(particularAmounts[item.key])}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-[56px_1fr_96px] border-t border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/60 text-sm font-semibold">
+          <div className="px-3 py-2.5 text-transparent">--</div>
+          <div className="px-3 py-2.5 text-gray-900 dark:text-white">Total</div>
+          <div className="px-3 py-2.5 text-right text-gray-900 dark:text-white">{fmt(totalFee)}</div>
+        </div>
+      </div>
+
+      {previousInstallments.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Previous Installments</p>
           <div className="divide-y divide-gray-100 dark:divide-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            {prevInstallments.map((inst, i) => (
-              <div key={i} className="flex items-center justify-between px-3 py-2 text-xs bg-white dark:bg-gray-900">
-                <span className="font-mono text-gray-500">{inst.receiptNumber ?? '-'}</span>
-                <span className="text-gray-500">{fmtDate(inst.date)}</span>
-                <span className="text-gray-500">{inst.paymentMode ?? 'Cash'}</span>
-                <span className="font-medium text-gray-700 dark:text-gray-300">{fmt(inst.amount)}</span>
+            {previousInstallments.map((item, index) => (
+              <div key={index} className="flex items-center justify-between px-3 py-2 text-xs bg-white dark:bg-gray-900">
+                <span className="font-mono text-gray-500">{item.receiptNumber ?? '-'}</span>
+                <span className="text-gray-500">{fmtDate(item.date)}</span>
+                <span className="text-gray-500">{item.paymentMode ?? 'Cash'}</span>
+                <span className="font-medium text-gray-700 dark:text-gray-300">{fmt(item.amount)}</span>
               </div>
             ))}
           </div>
@@ -129,11 +152,17 @@ function LegacyReceiptCard({ data }) {
         </div>
         <div className="px-3 py-1 divide-y divide-gray-100 dark:divide-gray-800">
           <Row label="Total Fee" value={fmt(totalFee)} />
-          {discount > 0 && <Row label="Discount" value={`- ${fmt(discount)}`} valueClass="text-green-600 dark:text-green-400" />}
+          {discount > 0 && (
+            <Row
+              label="Discount"
+              value={`- ${fmt(discount)}`}
+              valueClass="text-green-600 dark:text-green-400"
+            />
+          )}
           <Row label="Total Paid" value={fmt(totalPaid)} valueClass="text-blue-600 dark:text-blue-400" />
           <Row
             label="Balance Due"
-            value={isPaid ? 'FULLY PAID ✓' : fmt(remaining)}
+            value={isPaid ? 'FULLY PAID' : fmt(remaining)}
             valueClass={isPaid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
           />
         </div>
@@ -151,7 +180,7 @@ function LegacyReceiptCard({ data }) {
       </div>
 
       <p className="text-center text-xs text-gray-300 dark:text-gray-600">
-        Computer-generated receipt · No physical signature required
+        Computer-generated receipt. No physical signature required
       </p>
     </div>
   )
@@ -159,10 +188,6 @@ function LegacyReceiptCard({ data }) {
 
 export default function ReceiptPreview({
   data,
-  template = null,
-  fields = [],
-  student = null,
-  settings = null,
   onClose,
   onDownload,
   onWhatsApp,
@@ -170,18 +195,18 @@ export default function ReceiptPreview({
 }) {
   if (!data) return null
 
-  const isTemplatePreview = Boolean(template && fields.length && student && settings)
   const studentName = data?.student?.dynamicFields?.studentName ?? 'Student'
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm" onClick={(e) => {
-      if (e.target === e.currentTarget) onClose()
-    }}>
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
       <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-            {isTemplatePreview ? (template?.name ?? 'Receipt Preview') : 'Receipt Preview'}
-          </h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Receipt Preview</h3>
           <p className="text-xs text-gray-400 truncate">{studentName}</p>
         </div>
 
@@ -196,13 +221,9 @@ export default function ReceiptPreview({
                 : 'bg-indigo-600 hover:bg-indigo-700 text-white'
             )}
           >
-            {isGenerating ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Preparing...</>
-            ) : isTemplatePreview ? (
-              <><Printer className="w-4 h-4" /> Print / Save PDF</>
-            ) : (
-              <><Download className="w-4 h-4" /> Download PDF</>
-            )}
+            {isGenerating
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Preparing...</>
+              : <><Download className="w-4 h-4" /> Download PDF</>}
           </button>
 
           <button
@@ -223,20 +244,9 @@ export default function ReceiptPreview({
 
       <div className="flex-1 overflow-y-auto p-6 flex justify-center">
         <div style={{ width: '100%', maxWidth: 520 }}>
-          {isTemplatePreview ? (
-            <DocumentRenderer
-              template={template}
-              fields={fields}
-              student={student}
-              settings={settings}
-              mode="preview"
-              pageSize={template?.pageSize ?? 'A4'}
-            />
-          ) : (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden p-5">
-              <LegacyReceiptCard data={data} />
-            </div>
-          )}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden p-5">
+            <LegacyReceiptCard data={data} />
+          </div>
         </div>
       </div>
     </div>

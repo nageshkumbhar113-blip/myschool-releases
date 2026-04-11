@@ -16,11 +16,11 @@ import ValidationWarningModal from '../components/ValidationWarningModal'
 import AdmissionFormPreview   from '../components/AdmissionFormPreview'
 import useDocumentValidation  from '../hooks/useDocumentValidation'
 import { getActiveTemplate, getFields }  from '../utils/dbHelpers'
-import { PRESETS }            from '../utils/presets'
 import { migrateFieldMappings } from '../utils/fieldTypes'
 import { isStudentDynamicFieldKey, isCustomStudentProfileField } from '../utils/studentFieldFilter'
 import { isEmptyDocumentValue, resolveDocumentFieldValue } from '../utils/documentValueResolver'
-import { formatCurrency, getFeeStatus, FEE_STATUS_META } from '../utils/feeCalculations'
+import { ensureLcBonafidePrintFields } from '../utils/documentTemplateDefaults'
+import { formatCurrency } from '../utils/feeCalculations'
 import clsx                   from 'clsx'
 
 const DOCUMENT_META = {
@@ -38,6 +38,11 @@ const DOCUMENT_META = {
     missingMessage: 'No active bonafide template. Open Template Builder and activate one first.',
     loadError: 'Failed to load bonafide template',
   },
+}
+
+function formatDynamicFieldLabel(key) {
+  if (key === 'resistorNo') return 'Reg. No.'
+  return key.replace(/([A-Z])/g, ' $1').trim()
 }
 
 function InfoRow({ label, value }) {
@@ -123,16 +128,19 @@ export default function StudentDetail() {
 
       // Load all field definitions for this institute
       const flds = await getFields(instituteId)
+      const hydrated = ensureLcBonafidePrintFields(template, flds)
+      const hydratedTemplate = hydrated.template
+      const hydratedFields = hydrated.fields
 
       setActiveDocMeta(docMeta)
-      setLcTemplate(template)
-      setLcFields(flds)
+      setLcTemplate(hydratedTemplate)
+      setLcFields(hydratedFields)
       setManualData({})
       setPendingManual(null)
       setAdditionalManualFields(
-        (template.fieldMappings ?? [])
+        (hydratedTemplate.fieldMappings ?? [])
           .map((mapping) => {
-            const fieldDef = flds.find((field) => field.id === mapping.fieldId)
+            const fieldDef = hydratedFields.find((field) => field.id === mapping.fieldId)
             if (!fieldDef || fieldDef.type === 'static') return null
             if ((mapping.fieldSource ?? 'student') === 'manual') return null
 
@@ -323,7 +331,7 @@ export default function StudentDetail() {
               {Object.entries(s.dynamicFields ?? {})
                 .filter(([k]) => !['studentName','dateOfBirth','gender','photo'].includes(k) && isStudentDynamicFieldKey(k))
                 .map(([k, v]) => (
-                  <InfoRow key={k} label={k.replace(/([A-Z])/g, ' $1').trim()} value={typeof v === 'string' && v.startsWith('data:') ? '[Image]' : String(v)} />
+                  <InfoRow key={k} label={formatDynamicFieldLabel(k)} value={typeof v === 'string' && v.startsWith('data:') ? '[Image]' : String(v)} />
                 ))
               }
             </div>

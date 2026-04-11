@@ -25,12 +25,16 @@ export const MOCK_STUDENT = {
     // ── Admission
     admissionNo:      'ADM-2019-001',
     srNo:             'SR-2019-042',
+    studentId:        'STU-2019-042',
+    uidAadharNo:      '1234 5678 9012',
     dateOfAdmission:  '2019-06-10',
 
     // ── Academic
+    motherTongue:     'Marathi',
     lastClassStudied: 'X (Secondary)',
     board:            'CBSE',
     result:           'Passed with Distinction',
+    resistorNo:       'LC-2024-118',
     leavingDate:      '2024-03-31',
     studyingSince:    '2019',
     academicYear:     '2023-24',

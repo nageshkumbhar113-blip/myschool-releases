@@ -5,32 +5,25 @@
  * Features:
  *  - Search by receipt number or student name
  *  - Date range filter
- *  - Download PDF (generated in Web Worker — no UI freeze)
+ *  - Direct PDF download
  *  - WhatsApp share with pre-filled message
  *  - Receipt preview modal
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Receipt, Search, Download, MessageCircle, Printer,
+  Receipt, Search, Download, MessageCircle,
   RefreshCw, Eye, Loader2, Calendar,
   CheckCircle, X, Filter,
 } from 'lucide-react'
+import clsx from 'clsx'
 import useReceiptStore from '../store/useReceiptStore'
 import useStudentStore from '../store/useStudentStore'
-import useAppStore     from '../store/useAppStore'
-import ReceiptPreview  from '../components/ReceiptPreview'
-import DocumentRenderer from '../components/DocumentRenderer'
-import usePrintDocument from '../hooks/usePrintDocument'
-import { getActiveTemplate, getFields, getSettings } from '../utils/dbHelpers'
-import { getPageSizeConfig } from '../utils/pageSizes'
-import { buildReceiptTemplateSettings, buildReceiptTemplateStudent } from '../utils/receiptTemplateData'
-import clsx            from 'clsx'
-import '../styles/print.css'
+import useAppStore from '../store/useAppStore'
+import ReceiptPreview from '../components/ReceiptPreview'
+import { getSettings } from '../utils/dbHelpers'
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-const fmt = (n) => `₹${Number(n ?? 0).toLocaleString('en-IN')}`
+const fmt = (n) => `Rs.${Number(n ?? 0).toLocaleString('en-IN')}`
 
 const fmtDate = (d) => {
   if (!d) return '-'
@@ -43,143 +36,126 @@ const fmtDate = (d) => {
   }
 }
 
-// ── PDF Worker singleton (one worker reused across the page) ──────────────
-
-let _worker = null
-const _pending = new Map() // jobId → { resolve, reject }
+let workerInstance = null
+const pendingJobs = new Map()
 
 function getWorker() {
-  if (_worker) return _worker
-  _worker = new Worker(
+  if (workerInstance) return workerInstance
+
+  workerInstance = new Worker(
     new URL('../workers/pdfWorker.js', import.meta.url),
     { type: 'module' }
   )
-  _worker.onmessage = (e) => {
-    const { type, id, buffer, error } = e.data ?? {}
-    const handlers = _pending.get(id)
+
+  workerInstance.onmessage = (event) => {
+    const { type, id, buffer, error } = event.data ?? {}
+    const handlers = pendingJobs.get(id)
     if (!handlers) return
-    _pending.delete(id)
+
+    pendingJobs.delete(id)
     if (type === 'PDF_READY') handlers.resolve(buffer)
     else handlers.reject(new Error(error ?? 'Unknown PDF error'))
   }
-  _worker.onerror = () => {
-    _worker?.terminate()
-    _worker = null
-    _pending.forEach(({ reject }) => reject(new Error('Worker crashed')))
-    _pending.clear()
+
+  workerInstance.onerror = () => {
+    workerInstance?.terminate()
+    workerInstance = null
+    pendingJobs.forEach(({ reject }) => reject(new Error('Worker crashed')))
+    pendingJobs.clear()
   }
-  return _worker
+
+  return workerInstance
 }
 
-/** Send a job to the Web Worker; returns a Promise<ArrayBuffer> */
 function workerPDF(data) {
   return new Promise((resolve, reject) => {
     try {
       const worker = getWorker()
       const id = crypto.randomUUID()
-      _pending.set(id, { resolve, reject })
+      pendingJobs.set(id, { resolve, reject })
       worker.postMessage({ type: 'GENERATE_PDF', id, data })
-    } catch (err) {
-      reject(err)
+    } catch (error) {
+      reject(error)
     }
   })
 }
 
-/**
- * Generate a PDF ArrayBuffer.
- * Tries the Web Worker first; on any failure falls back to main-thread generation.
- * pdfmake 0.3.x API: virtualfs + async getBlob()
- */
-async function generatePDF(data) {
-  try {
-    return await workerPDF(data)
-  } catch (workerErr) {
-    console.warn('Worker PDF failed, falling back to main thread:', workerErr.message)
-    return mainThreadPDF(data)
-  }
-}
-
-/** Main-thread fallback — uses pdfmake 0.3.x API (virtualfs + async getBlob) */
 async function mainThreadPDF(data) {
   const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([
     import('pdfmake/build/pdfmake'),
     import('pdfmake/build/vfs_fonts'),
   ])
-  // pdfmake 0.3.x: virtualfs replaces the old pdfMake.vfs
-  // readFileSync must return Uint8Array — raw base64 string would be treated as a path
+
   pdfMake.virtualfs = {
-    existsSync:   (path) => Object.prototype.hasOwnProperty.call(pdfFonts, path),
+    existsSync: (path) => Object.prototype.hasOwnProperty.call(pdfFonts, path),
     readFileSync: (path) => {
-      const b64    = pdfFonts[path]
-      const binary = atob(b64)
-      const bytes  = new Uint8Array(binary.length)
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+      const base64 = pdfFonts[path]
+      const binary = atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i)
+      }
       return bytes
     },
   }
+
   const { buildReceiptDocDef } = await import('../utils/pdfGenerator')
-  // getBlob() is async in 0.3.x — returns Promise<Blob>
   const blob = await pdfMake.createPdf(buildReceiptDocDef(data)).getBlob()
   return blob.arrayBuffer()
 }
 
+async function generatePDF(data) {
+  try {
+    return await workerPDF(data)
+  } catch (workerError) {
+    console.warn('Worker PDF failed, falling back to main thread:', workerError.message)
+    return mainThreadPDF(data)
+  }
+}
+
 function downloadBuffer(buffer, filename) {
   const blob = new Blob([buffer], { type: 'application/pdf' })
-  const url  = URL.createObjectURL(blob)
-  const a    = Object.assign(document.createElement('a'), { href: url, download: filename })
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  const url = URL.createObjectURL(blob)
+  const anchor = Object.assign(document.createElement('a'), {
+    href: url,
+    download: filename,
+  })
+
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
   setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
 
-// ── Page Component ─────────────────────────────────────────────────────────
-
 export default function Receipts() {
   const { currentInstituteId, currentInstituteName, selectedInstitute } = useAppStore()
-  const { print } = usePrintDocument()
-  const institutes = []
   const {
     receipts, loading, pdfStatus,
     loadReceipts, getReceiptData, setPdfStatus,
   } = useReceiptStore()
 
-  const [search,      setSearch]      = useState('')
-  const [dateFrom,    setDateFrom]    = useState('')
-  const [dateTo,      setDateTo]      = useState('')
+  const [search, setSearch] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [preview,     setPreview]     = useState(null)
-  const [toast,       setToast]       = useState(null)
-  const [receiptTemplate, setReceiptTemplate] = useState(null)
-  const [receiptFields, setReceiptFields]     = useState([])
+  const [preview, setPreview] = useState(null)
+  const [toast, setToast] = useState(null)
   const [receiptSettings, setReceiptSettings] = useState(null)
-  const [printJob, setPrintJob]               = useState(null)
 
   const instituteId = currentInstituteId || selectedInstitute || null
-  const institute   = { name: currentInstituteName, address: '', phone: '', logo: null }
-  const { widthMm: printPageWidth, heightMm: printPageHeight } = getPageSizeConfig(receiptTemplate?.pageSize ?? 'A4')
+  const institute = { name: currentInstituteName, address: '', phone: '', logo: null }
 
-  const loadReceiptAssets = useCallback(async () => {
+  const loadReceiptSettings = useCallback(async () => {
     if (!instituteId) {
-      setReceiptTemplate(null)
-      setReceiptFields([])
       setReceiptSettings(null)
       return
     }
 
     try {
-      const [template, fields, settings] = await Promise.all([
-        getActiveTemplate(instituteId, 'receipt'),
-        getFields(instituteId),
-        getSettings(instituteId),
-      ])
-      setReceiptTemplate(template)
-      setReceiptFields(fields)
+      const settings = await getSettings(instituteId)
       setReceiptSettings(settings)
-    } catch (err) {
-      console.error('Receipt template assets load failed:', err)
-      setReceiptTemplate(null)
-      setReceiptFields([])
+    } catch (error) {
+      console.error('Receipt settings load failed:', error)
       setReceiptSettings(null)
     }
   }, [instituteId])
@@ -189,145 +165,89 @@ export default function Receipts() {
   }, [instituteId, loadReceipts])
 
   useEffect(() => {
-    loadReceiptAssets()
-  }, [loadReceiptAssets])
+    loadReceiptSettings()
+  }, [loadReceiptSettings])
 
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3000)
   }, [])
 
-  // ── Filtered list ──────────────────────────────────────────────────────
-
   const displayed = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return receipts.filter(r => {
-      if (q) {
-        const name = (r.student?.dynamicFields?.studentName ?? '').toLowerCase()
-        const rno  = (r.receiptNumber ?? '').toLowerCase()
-        if (!name.includes(q) && !rno.includes(q)) return false
+    const query = search.trim().toLowerCase()
+
+    return receipts.filter((receipt) => {
+      if (query) {
+        const name = (receipt.student?.dynamicFields?.studentName ?? '').toLowerCase()
+        const number = (receipt.receiptNumber ?? '').toLowerCase()
+        if (!name.includes(query) && !number.includes(query)) return false
       }
-      if (dateFrom && r.paymentDate && r.paymentDate < dateFrom) return false
-      if (dateTo   && r.paymentDate && r.paymentDate > dateTo)   return false
+
+      if (dateFrom && receipt.paymentDate && receipt.paymentDate < dateFrom) return false
+      if (dateTo && receipt.paymentDate && receipt.paymentDate > dateTo) return false
       return true
     })
   }, [receipts, search, dateFrom, dateTo])
-
-  // ── Enrich data with institute info ────────────────────────────────────
 
   const enrichInstitute = useCallback((data) => ({
     ...data,
     institute: {
       ...data?.institute,
-      name:    receiptSettings?.schoolName ?? institute?.name ?? data?.institute?.name ?? 'School',
+      name: receiptSettings?.schoolName ?? institute?.name ?? data?.institute?.name ?? 'School',
       address: receiptSettings?.address ?? institute?.address ?? data?.institute?.address ?? '',
-      phone:   receiptSettings?.phone ?? institute?.phone ?? data?.institute?.phone ?? '',
-      logo:    receiptSettings?.logo ?? data?.institute?.logo ?? null,
+      phone: receiptSettings?.phone ?? institute?.phone ?? data?.institute?.phone ?? '',
+      logo: receiptSettings?.logo ?? data?.institute?.logo ?? null,
+      feeStructure: receiptSettings?.feeStructure ?? data?.institute?.feeStructure ?? [],
     },
   }), [institute, receiptSettings])
 
-  const hasTemplateReceiptFlow = Boolean(receiptTemplate && receiptFields.length)
-
-  const buildTemplatePayload = useCallback((data) => ({
-    student: buildReceiptTemplateStudent(data),
-    settings: buildReceiptTemplateSettings({
-      ...data?.institute,
-      ...receiptSettings,
-    }),
-  }), [receiptSettings])
-
-  // ── PDF Download ───────────────────────────────────────────────────────
-
   const handleDownload = useCallback(async (receiptId, receiptNumber, preloadedData = null) => {
     const raw = preloadedData ?? await getReceiptData(receiptId)
-    if (!raw) { showToast('Receipt data not found', 'error'); return }
-    const data = enrichInstitute(raw)
-
-    if (hasTemplateReceiptFlow) {
-      const templatePayload = buildTemplatePayload(data)
-      setPdfStatus(receiptId, 'generating')
-      setPrintJob({
-        receiptId,
-        receiptNumber,
-        student: templatePayload.student,
-        settings: templatePayload.settings,
-      })
+    if (!raw) {
+      showToast('Receipt data not found', 'error')
       return
     }
 
+    const data = enrichInstitute(raw)
     setPdfStatus(receiptId, 'generating')
+
     try {
       const buffer = await generatePDF(data)
       downloadBuffer(buffer, `Receipt-${receiptNumber ?? receiptId}.pdf`)
       setPdfStatus(receiptId, 'done')
       showToast(`Receipt ${receiptNumber} downloaded`)
-    } catch (err) {
-      console.error('PDF generation error:', err)
+    } catch (error) {
+      console.error('PDF generation error:', error)
       setPdfStatus(receiptId, 'error')
       showToast('PDF generation failed. Please try again.', 'error')
     }
-  }, [buildTemplatePayload, enrichInstitute, getReceiptData, hasTemplateReceiptFlow, setPdfStatus, showToast])
-
-  // ── WhatsApp Share ─────────────────────────────────────────────────────
+  }, [enrichInstitute, getReceiptData, setPdfStatus, showToast])
 
   const handleWhatsApp = useCallback((data) => {
     const { receipt, student } = data
     const studentName = student?.dynamicFields?.studentName ?? 'Student'
-    const msg = encodeURIComponent(
-      `*Fee Receipt*\n` +
-      `Receipt No: ${receipt?.receiptNumber ?? '-'}\n` +
-      `Student: ${studentName}\n` +
-      `Amount Paid: ${fmt(receipt?.amount)}\n` +
-      `Date: ${fmtDate(receipt?.paymentDate ?? receipt?.createdAt)}\n` +
-      `School: ${institute?.name ?? 'School'}\n\n` +
-      `_This is a computer-generated receipt._`
+    const message = encodeURIComponent(
+      `*Fee Receipt*\n`
+      + `Receipt No: ${receipt?.receiptNumber ?? '-'}\n`
+      + `Student: ${studentName}\n`
+      + `Amount Paid: ${fmt(receipt?.amount)}\n`
+      + `Date: ${fmtDate(receipt?.paymentDate ?? receipt?.createdAt)}\n`
+      + `School: ${institute?.name ?? 'School'}\n\n`
+      + `_This is a computer-generated receipt._`
     )
-    window.open(`https://wa.me/?text=${msg}`, '_blank', 'noopener,noreferrer')
-  }, [institute])
 
-  // ── Preview ────────────────────────────────────────────────────────────
+    window.open(`https://wa.me/?text=${message}`, '_blank', 'noopener,noreferrer')
+  }, [institute])
 
   const handlePreview = useCallback(async (receipt) => {
     const raw = await getReceiptData(receipt.id)
-    if (!raw) { showToast('Could not load receipt details', 'error'); return }
-    const data = enrichInstitute(raw)
-    const templatePayload = hasTemplateReceiptFlow ? buildTemplatePayload(data) : null
-    setPreview({
-      data,
-      student: templatePayload?.student ?? null,
-      settings: templatePayload?.settings ?? null,
-    })
-  }, [buildTemplatePayload, enrichInstitute, getReceiptData, hasTemplateReceiptFlow, showToast])
-
-  useEffect(() => {
-    if (!printJob) return
-
-    let frame1 = 0
-    let frame2 = 0
-
-    frame1 = requestAnimationFrame(() => {
-      frame2 = requestAnimationFrame(() => {
-        try {
-          print()
-          setPdfStatus(printJob.receiptId, 'done')
-          showToast(`Receipt ${printJob.receiptNumber} ready. Print dialog मधून Save as PDF करा.`)
-        } catch (err) {
-          console.error('Receipt print error:', err)
-          setPdfStatus(printJob.receiptId, 'error')
-          showToast('Print dialog open झाला नाही. पुन्हा प्रयत्न करा.', 'error')
-        } finally {
-          setPrintJob(null)
-        }
-      })
-    })
-
-    return () => {
-      cancelAnimationFrame(frame1)
-      cancelAnimationFrame(frame2)
+    if (!raw) {
+      showToast('Could not load receipt details', 'error')
+      return
     }
-  }, [print, printJob, setPdfStatus, showToast])
 
-  // ── Render ─────────────────────────────────────────────────────────────
+    setPreview({ data: enrichInstitute(raw) })
+  }, [enrichInstitute, getReceiptData, showToast])
 
   if (!instituteId) {
     return (
@@ -340,8 +260,6 @@ export default function Receipts() {
 
   return (
     <div className="space-y-5">
-
-      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">Receipts</h2>
@@ -351,7 +269,7 @@ export default function Receipts() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setShowFilters(p => !p)}
+            onClick={() => setShowFilters((prev) => !prev)}
             title="Date filter"
             className={clsx(
               'btn-secondary p-2',
@@ -364,7 +282,7 @@ export default function Receipts() {
             onClick={() => {
               if (!instituteId) return
               loadReceipts(instituteId)
-              loadReceiptAssets()
+              loadReceiptSettings()
             }}
             className="btn-secondary p-2"
             title="Refresh"
@@ -374,14 +292,13 @@ export default function Receipts() {
         </div>
       </div>
 
-      {/* Search + Date Filters */}
       <div className="space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by student name or receipt number…"
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by student name or receipt number..."
             className="input pl-9"
           />
         </div>
@@ -391,22 +308,27 @@ export default function Receipts() {
             <div className="relative flex-1">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input
-                type="date" value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
                 className="input pl-9 text-sm"
               />
             </div>
             <div className="relative flex-1">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input
-                type="date" value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
                 className="input pl-9 text-sm"
               />
             </div>
             {(dateFrom || dateTo) && (
               <button
-                onClick={() => { setDateFrom(''); setDateTo('') }}
+                onClick={() => {
+                  setDateFrom('')
+                  setDateTo('')
+                }}
                 className="btn-secondary px-3 text-sm shrink-0 flex items-center gap-1.5"
               >
                 <X className="w-3.5 h-3.5" /> Clear
@@ -416,7 +338,6 @@ export default function Receipts() {
         )}
       </div>
 
-      {/* Receipts Table */}
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -432,10 +353,10 @@ export default function Receipts() {
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    {Array.from({ length: 6 }).map((_, j) => (
-                      <td key={j} className="px-4 py-3">
+                Array.from({ length: 5 }).map((_, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {Array.from({ length: 6 }).map((_, cellIndex) => (
+                      <td key={cellIndex} className="px-4 py-3">
                         <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
                       </td>
                     ))}
@@ -455,26 +376,25 @@ export default function Receipts() {
                   </td>
                 </tr>
               ) : (
-                displayed.map(r => {
-                  const studentName = r.student?.dynamicFields?.studentName ?? 'Unknown'
-                  const isGen       = pdfStatus[r.id] === 'generating'
+                displayed.map((receipt) => {
+                  const studentName = receipt.student?.dynamicFields?.studentName ?? 'Unknown'
+                  const isGenerating = pdfStatus[receipt.id] === 'generating'
 
                   return (
-                    <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-
-                      {/* Receipt No */}
+                    <tr key={receipt.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                       <td className="px-4 py-3">
-                        <span className={clsx(
-                          'font-mono text-xs font-semibold px-2 py-0.5 rounded-lg',
-                          r.status === 'cancelled'
-                            ? 'bg-red-50 dark:bg-red-900/20 text-red-500 line-through'
-                            : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
-                        )}>
-                          {r.receiptNumber}
+                        <span
+                          className={clsx(
+                            'font-mono text-xs font-semibold px-2 py-0.5 rounded-lg',
+                            receipt.status === 'cancelled'
+                              ? 'bg-red-50 dark:bg-red-900/20 text-red-500 line-through'
+                              : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
+                          )}
+                        >
+                          {receipt.receiptNumber}
                         </span>
                       </td>
 
-                      {/* Student */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center shrink-0">
@@ -484,35 +404,31 @@ export default function Receipts() {
                           </div>
                           <div>
                             <p className="font-medium text-gray-900 dark:text-white">{studentName}</p>
-                            {r.student?.class && (
-                              <p className="text-xs text-gray-400">Class {r.student.class}</p>
+                            {receipt.student?.class && (
+                              <p className="text-xs text-gray-400">Class {receipt.student.class}</p>
                             )}
                           </div>
                         </div>
                       </td>
 
-                      {/* Amount */}
                       <td className="px-4 py-3 text-right font-bold text-green-600 dark:text-green-400">
-                        {fmt(r.amount)}
+                        {fmt(receipt.amount)}
                       </td>
 
-                      {/* Date */}
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-400 hidden md:table-cell text-sm">
-                        {fmtDate(r.paymentDate ?? r.createdAt)}
+                        {fmtDate(receipt.paymentDate ?? receipt.createdAt)}
                       </td>
 
-                      {/* Mode */}
                       <td className="px-4 py-3 hidden lg:table-cell">
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                          {r.paymentMode ?? 'Cash'}
+                          {receipt.paymentMode ?? 'Cash'}
                         </span>
                       </td>
 
-                      {/* Actions */}
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => handlePreview(r)}
+                            onClick={() => handlePreview(receipt)}
                             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-primary-600 transition-colors"
                             title="Preview receipt"
                           >
@@ -520,22 +436,19 @@ export default function Receipts() {
                           </button>
 
                           <button
-                            onClick={() => handleDownload(r.id, r.receiptNumber, null)}
-                            disabled={isGen}
+                            onClick={() => handleDownload(receipt.id, receipt.receiptNumber, null)}
+                            disabled={isGenerating}
                             className="p-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-gray-400 hover:text-indigo-600 transition-colors disabled:opacity-50"
-                            title={hasTemplateReceiptFlow ? 'Print / Save PDF' : 'Download PDF'}
+                            title="Download PDF"
                           >
-                            {isGen
+                            {isGenerating
                               ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-                              : hasTemplateReceiptFlow
-                                ? <Printer className="w-3.5 h-3.5" />
-                                : <Download className="w-3.5 h-3.5" />
-                            }
+                              : <Download className="w-3.5 h-3.5" />}
                           </button>
 
                           <button
                             onClick={async () => {
-                              const raw = await getReceiptData(r.id)
+                              const raw = await getReceiptData(receipt.id)
                               if (raw) handleWhatsApp(enrichInstitute(raw))
                             }}
                             className="p-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 text-gray-400 hover:text-green-600 transition-colors"
@@ -547,17 +460,17 @@ export default function Receipts() {
                           <button
                             onClick={async () => {
                               const reason = prompt('Cancel reason (optional):') ?? ''
-                              if (!confirm(`Cancel receipt ${r.receiptNumber}?`)) return
+                              if (!confirm(`Cancel receipt ${receipt.receiptNumber}?`)) return
                               try {
                                 const { cancelReceipt } = useStudentStore.getState()
-                                await cancelReceipt(r.id, reason)
+                                await cancelReceipt(receipt.id, reason)
                                 loadReceipts(instituteId)
-                                showToast(`Receipt ${r.receiptNumber} cancelled`)
-                              } catch (err) {
-                                showToast(err.message, 'error')
+                                showToast(`Receipt ${receipt.receiptNumber} cancelled`)
+                              } catch (error) {
+                                showToast(error.message, 'error')
                               }
                             }}
-                            disabled={r.status === 'cancelled'}
+                            disabled={receipt.status === 'cancelled'}
                             className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-30"
                             title="Cancel receipt"
                           >
@@ -577,20 +490,15 @@ export default function Receipts() {
           <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
             <span>{displayed.length} receipt{displayed.length !== 1 ? 's' : ''}</span>
             <span className="font-semibold text-gray-900 dark:text-white">
-              Total collected: {fmt(displayed.reduce((s, r) => s + Number(r.amount ?? 0), 0))}
+              Total collected: {fmt(displayed.reduce((sum, receipt) => sum + Number(receipt.amount ?? 0), 0))}
             </span>
           </div>
         )}
       </div>
 
-      {/* Preview Modal */}
       {preview && (
         <ReceiptPreview
           data={preview.data}
-          template={receiptTemplate}
-          fields={receiptFields}
-          student={preview.student}
-          settings={preview.settings}
           onClose={() => setPreview(null)}
           isGenerating={preview.data?.receipt?.id ? pdfStatus[preview.data.receipt.id] === 'generating' : false}
           onDownload={() => handleDownload(
@@ -602,30 +510,15 @@ export default function Receipts() {
         />
       )}
 
-      {printJob && hasTemplateReceiptFlow && (
-        <div
-          className="doc-print-root"
-          style={{ '--print-page-width': printPageWidth, '--print-page-height': printPageHeight }}
-        >
-          <DocumentRenderer
-            template={receiptTemplate}
-            fields={receiptFields}
-            student={printJob.student}
-            settings={printJob.settings}
-            mode="print"
-            pageSize={receiptTemplate?.pageSize ?? 'A4'}
-          />
-        </div>
-      )}
-
-      {/* Toast */}
       {toast && (
-        <div className={clsx(
-          'fixed bottom-6 right-6 z-[60] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium',
-          toast.type === 'error'
-            ? 'bg-red-600 text-white'
-            : 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
-        )}>
+        <div
+          className={clsx(
+            'fixed bottom-6 right-6 z-[60] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium',
+            toast.type === 'error'
+              ? 'bg-red-600 text-white'
+              : 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+          )}
+        >
           <CheckCircle className="w-4 h-4 text-green-400 dark:text-green-600" />
           {toast.msg}
         </div>

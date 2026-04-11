@@ -214,7 +214,7 @@ export function createFieldDef(type, label, instituteId, order = 0) {
     type,
     options: [...(def.defaults.options ?? [])],
     validation: { ...def.defaults.validation },
-    meta: { system: false, order },
+    meta: { system: false, order, showInAdmissionForm: false },
     instituteId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

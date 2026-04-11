@@ -1,7 +1,7 @@
 {
   "name": "my-school",
   "private": true,
-  "version": "2.0.3",
+  "version": "3.0.0",
   "type": "module",
   "main": "electron/school/main.cjs",
   "scripts": {
@@ -18,7 +18,11 @@
     "build:admin": "npm run build && electron-builder --config admin.config.cjs",
     "build:all": "npm run build && electron-builder --config school.config.cjs && electron-builder --config admin.config.cjs",
     "test:school": "npm run build && node scripts/run-electron.cjs school --smoke-test",
-    "test:admin": "npm run build && node scripts/run-electron.cjs admin --smoke-test"
+    "test:admin": "npm run build && node scripts/run-electron.cjs admin --smoke-test",
+    "test:school:packaged": "npm run build && electron-builder --config school.config.cjs --dir && node scripts/run-packaged-smoke.cjs school",
+    "test:admin:packaged": "npm run build && electron-builder --config admin.config.cjs --dir && node scripts/run-packaged-smoke.cjs admin",
+    "smoke": "node scripts/run-packaged-smoke.cjs school",
+    "build:checked": "npm run test:school:packaged"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",

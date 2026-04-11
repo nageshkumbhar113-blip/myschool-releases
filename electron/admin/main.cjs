@@ -2,6 +2,24 @@
 const path = require('path')
 const http = require('http')
 const os = require('os')
+const BOOT_LOG = path.join(os.tmpdir(), 'my-school-admin-boot.log')
+
+function bootLog(message) {
+  try {
+    fs.appendFileSync(BOOT_LOG, `[${new Date().toISOString()}] ${message}\n`, 'utf8')
+  } catch {}
+}
+
+bootLog('App start (admin main.cjs loaded)')
+
+process.on('uncaughtException', (error) => {
+  bootLog(`uncaughtException: ${error?.stack || error?.message || error}`)
+})
+
+process.on('unhandledRejection', (error) => {
+  bootLog(`unhandledRejection: ${error?.stack || error?.message || error}`)
+})
+
 const crypto = require('crypto')
 const dns = require('dns').promises
 const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron')
@@ -15,13 +33,62 @@ const DEFAULT_HEIGHT = 800
 const MIN_WIDTH = 1024
 const MIN_HEIGHT = 600
 const ADMIN_ROUTE = '/super-admin/login'
+const SMOKE_TIMEOUT = 10000
 const isDev = !app.isPackaged
-const isSmokeTest = process.argv.includes('--smoke-test')
+const isSmokeTest = process.argv.includes('--smoke-test') || process.env.MY_SCHOOL_SMOKE_TEST === '1'
+let smokeReported = false
+
+function getSmokeReportPath() {
+  return process.env.MY_SCHOOL_SMOKE_REPORT
+    || path.join(app.getPath('temp'), 'my-school-admin-smoke.json')
+}
+
+function writeSmokeReport(report) {
+  if (!isSmokeTest) return
+  const filePath = getSmokeReportPath()
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+  fs.writeFileSync(filePath, JSON.stringify({
+    ...report,
+    timestamp: new Date().toISOString(),
+  }, null, 2), 'utf8')
+}
+
+function logPass(data = {}) {
+  const payload = {
+    status: 'PASS',
+    type: 'SMOKE_TEST',
+    timestamp: new Date().toISOString(),
+    ...data,
+  }
+  if (!smokeReported) {
+    smokeReported = true
+    writeSmokeReport(payload)
+    console.log(JSON.stringify(payload))
+  }
+  return payload
+}
+
+function logFail(error, data = {}) {
+  const payload = {
+    status: 'FAIL',
+    type: 'SMOKE_TEST',
+    timestamp: new Date().toISOString(),
+    error: error?.message || error,
+    ...data,
+  }
+  if (!smokeReported) {
+    smokeReported = true
+    writeSmokeReport(payload)
+    console.error(JSON.stringify(payload))
+  }
+  return payload
+}
+
 const smokeExit = () => setTimeout(() => {
-  console.error('MY_School Admin Tool smoke test timed out.')
+  logFail('Timeout', { app: 'admin' })
   process.exitCode = 1
   app.exit(1)
-}, 15000)
+}, SMOKE_TIMEOUT)
 
 if (isSmokeTest) {
   const smokeDataDir = path.join(os.tmpdir(), 'my_school_admin_smoke')
@@ -36,7 +103,10 @@ let staticServer = null
 let baseUrl = ''
 
 function resolveAppPath(...segments) {
-  return path.join(__dirname, '../..', ...segments)
+  const appRoot = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar')
+    : path.join(__dirname, '../..')
+  return path.join(appRoot, ...segments)
 }
 
 function getRuntimeIcon() {
@@ -159,6 +229,7 @@ function resolveDistRequestPath(distRoot, pathname) {
 }
 
 function startStaticServer() {
+  bootLog('startStaticServer start')
   const distRoot = resolveAppPath('dist')
   const indexFile = ensureBuiltAppExists(distRoot)
 
@@ -182,6 +253,7 @@ function startStaticServer() {
     staticServer.listen(0, '127.0.0.1', () => {
       const { port } = staticServer.address()
       baseUrl = `http://127.0.0.1:${port}`
+      bootLog(`startStaticServer listening on ${baseUrl}`)
       resolve(baseUrl)
     })
   })
@@ -193,6 +265,17 @@ function stopStaticServer() {
     staticServer = null
     baseUrl = ''
   }
+}
+
+function attachSmokeLogging(win, label) {
+  if (!isSmokeTest) return
+
+  win.webContents.on('console-message', (_event, level, message) => {
+    console.log(`[${label}-console:${level}] ${message}`)
+  })
+  win.webContents.on('did-fail-load', (_event, code, description, validatedURL) => {
+    console.error(`${label} did-fail-load: ${code} ${description} ${validatedURL}`)
+  })
 }
 
 async function checkInternet() {
@@ -219,26 +302,75 @@ function lockDownWindow(win) {
   })
 }
 
-function verifyAdminScreen(win) {
+function verifyAdminRuntime(win) {
   return win.webContents.executeJavaScript(`
     new Promise((resolve) => {
       const startedAt = Date.now()
       const expectedPath = ${JSON.stringify(ADMIN_ROUTE)}
+      let lastError = ''
       const check = () => {
-        const text = document.body.innerText || ''
-        const onExpectedRoute = window.location.pathname === expectedPath
-        const hasExpectedUi = text.includes('Admin Login')
-          || text.includes('Create Admin Password')
-          || text.includes('Loading admin security...')
-          || text.includes('Sign In to Admin Panel')
-          || text.includes('Save Admin Password')
+        ;(async () => {
+          try {
+            const text = document.body.innerText || ''
+            const onExpectedRoute = window.location.pathname === expectedPath
+            const hasExpectedUi = text.includes('Admin Login')
+              || text.includes('Create Admin Password')
+              || text.includes('Loading admin security...')
+              || text.includes('Sign In to Admin Panel')
+              || text.includes('Save Admin Password')
+            const electronAPI = window.electronAPI ?? null
+            const schoolApi = window.schoolApi ?? null
+            const version = typeof electronAPI?.getVersion === 'function'
+              ? await electronAPI.getVersion()
+              : null
+            const authState = typeof schoolApi?.auth?.isConfigured === 'function'
+              ? await schoolApi.auth.isConfigured()
+              : null
+            const licenseRecord = typeof schoolApi?.license?.getCurrent === 'function'
+              ? await schoolApi.license.getCurrent()
+              : undefined
 
-        if ((onExpectedRoute && hasExpectedUi) || Date.now() - startedAt > 10000) {
-          resolve({ onExpectedRoute, hasExpectedUi, pathname: window.location.pathname, text })
-          return
-        }
+            if (
+              onExpectedRoute
+              && hasExpectedUi
+              && electronAPI
+              && schoolApi
+              && typeof version === 'string'
+              && version
+              && typeof authState?.configured === 'boolean'
+            ) {
+              resolve({
+                ok: true,
+                onExpectedRoute,
+                hasExpectedUi,
+                hasElectronApi: true,
+                hasSchoolApi: true,
+                version,
+                authBridgeReachable: true,
+                licenseBridgeReachable: licenseRecord === null || typeof licenseRecord === 'object',
+                pathname: window.location.pathname,
+              })
+              return
+            }
+          } catch (error) {
+            lastError = error?.message || String(error)
+          }
 
-        setTimeout(check, 100)
+          if (Date.now() - startedAt > 10000) {
+            const text = document.body.innerText || ''
+            resolve({
+              ok: false,
+              hasElectronApi: Boolean(window.electronAPI),
+              hasSchoolApi: Boolean(window.schoolApi),
+              pathname: window.location.pathname,
+              text: text.slice(0, 200),
+              lastError,
+            })
+            return
+          }
+
+          setTimeout(check, 100)
+        })()
       }
 
       check()
@@ -247,6 +379,7 @@ function verifyAdminScreen(win) {
 }
 
 async function createWindow() {
+  bootLog('createWindow start')
   await startStaticServer()
 
   mainWindow = new BrowserWindow({
@@ -270,32 +403,74 @@ async function createWindow() {
       devTools: isDev,
     },
   })
+  bootLog('BrowserWindow created')
 
   lockDownWindow(mainWindow)
+  attachSmokeLogging(mainWindow, 'admin')
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
   })
 
-  if (isSmokeTest) {
-    mainWindow.webContents.on('console-message', (_event, level, message) => {
-      console.log(`[admin-console:${level}] ${message}`)
+  let smokeRan = false
+  let smokeTimer = null
+  let resolveSmoke
+  let rejectSmoke
+  const smokeDone = isSmokeTest
+    ? new Promise((resolve, reject) => {
+      resolveSmoke = resolve
+      rejectSmoke = reject
     })
-    mainWindow.webContents.on('did-fail-load', (_event, code, description, validatedURL) => {
-      console.error(`Admin did-fail-load: ${code} ${description} ${validatedURL}`)
+    : null
+
+  function safeRunSmoke() {
+    if (!isSmokeTest || smokeRan) return
+    smokeRan = true
+
+    verifyAdminRuntime(mainWindow).then((result) => {
+      if (!result?.ok) {
+        throw new Error(`Admin smoke test failed: ${JSON.stringify(result)}`)
+      }
+
+      clearTimeout(smokeTimer)
+      const payload = logPass({
+        app: 'admin',
+        version: result.version,
+        route: result.pathname,
+        hasElectronApi: result.hasElectronApi,
+        hasSchoolApi: result.hasSchoolApi,
+        authBridgeReachable: result.authBridgeReachable,
+        licenseBridgeReachable: result.licenseBridgeReachable,
+      })
+      bootLog(`smoke PASS: ${JSON.stringify(payload)}`)
+      setTimeout(() => app.quit(), 1200)
+      resolveSmoke?.(payload)
+    }).catch((error) => {
+      clearTimeout(smokeTimer)
+      const payload = logFail(error, { app: 'admin' })
+      bootLog(`smoke FAIL: ${JSON.stringify(payload)}`)
+      process.exitCode = 1
+      app.exit(1)
+      rejectSmoke?.(payload)
     })
   }
 
-  await mainWindow.loadURL(`${baseUrl}${ADMIN_ROUTE}`)
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (isSmokeTest) {
+      safeRunSmoke()
+    }
+  })
 
   if (isSmokeTest) {
-    const result = await verifyAdminScreen(mainWindow)
-    if (!result?.onExpectedRoute || !result?.hasExpectedUi) {
-      throw new Error(`Admin React UI did not reach ${ADMIN_ROUTE}. Current path: ${result?.pathname || 'unknown'}. Page text: ${(result?.text || '').slice(0, 200)}`)
-    }
-    console.log('MY_School Admin Tool Electron smoke test passed.')
-    setTimeout(() => app.quit(), 1200)
+    smokeTimer = smokeExit()
+  }
+
+  await mainWindow.loadURL(`${baseUrl}${ADMIN_ROUTE}`)
+  bootLog(`loadURL complete: ${baseUrl}${ADMIN_ROUTE}`)
+
+  if (isSmokeTest) {
+    await smokeDone
     return
   }
 
@@ -315,6 +490,7 @@ ipcMain.handle('install-update', async () => ({ ok: false, reason: 'not-configur
 ipcMain.on('download-update', () => {})
 
 app.whenReady().then(async () => {
+  bootLog('app.whenReady')
   if (isSmokeTest) smokeExit()
   getDb()
   registerAuthHandlers()
@@ -327,6 +503,8 @@ app.whenReady().then(async () => {
     }
   })
 }).catch((error) => {
+  bootLog(`startup catch: ${error?.stack || error?.message || error}`)
+  if (isSmokeTest) logFail(error, { app: 'admin' })
   console.error('Failed to start MY_School Admin Tool:', error)
   process.exitCode = 1
   app.quit()
@@ -337,7 +515,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  bootLog('before-quit')
   closeDb()
   stopStaticServer()
 })
-

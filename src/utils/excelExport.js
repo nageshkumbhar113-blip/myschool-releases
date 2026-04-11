@@ -107,6 +107,11 @@ const REPORT_LABELS = {
   register:   'Receipt-Register',
 }
 
+function formatSummaryLabel(key) {
+  if (key === 'resistorNo') return 'Reg. No.'
+  return key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')
+}
+
 // ── Main export function ──────────────────────────────────────────────────
 
 /**
@@ -142,7 +147,7 @@ export function exportToExcel({
     ...(filters.dateTo       ? { 'Date To':       filters.dateTo }       : {}),
     ...Object.fromEntries(
       Object.entries(summary).map(([k, v]) => [
-        k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1'),
+        formatSummaryLabel(k),
         typeof v === 'number' ? `₹${v.toLocaleString('en-IN')}` : v,
       ])
     ),

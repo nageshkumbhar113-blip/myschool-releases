@@ -163,16 +163,6 @@ function LivePreview({ fields }) {
 }
 
 // ---------------------------------------------------------------------------
-// Default system fields seeded when an institute has none
-// ---------------------------------------------------------------------------
-const SYSTEM_FIELDS = [
-  { label: 'Student Name', key: 'studentName', type: 'text',   meta: { system: true, order: 0 }, validation: { required: true, maxLength: 100 }, options: [] },
-  { label: 'Date of Birth', key: 'dateOfBirth', type: 'date',  meta: { system: true, order: 1 }, validation: { required: true }, options: [] },
-  { label: 'Gender',        key: 'gender',       type: 'select', meta: { system: true, order: 2 }, validation: { required: true }, options: ['Male', 'Female', 'Other'] },
-  { label: 'Photo',         key: 'photo',         type: 'image', meta: { system: true, order: 3 }, validation: { required: false }, options: [] },
-]
-
-// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 export default function FormBuilder() {
@@ -195,22 +185,7 @@ export default function FormBuilder() {
   // Load fields whenever institute changes
   useEffect(() => {
     if (!instituteId) return
-    loadFields(instituteId).then(async () => {
-      // Seed system fields if this institute has none
-      const current = useFieldStore.getState().fields
-      if (current.length === 0) {
-        for (const sf of SYSTEM_FIELDS) {
-          await addField({
-            ...sf,
-            id: crypto.randomUUID(),
-            instituteId,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            deletedAt: null,
-          })
-        }
-      }
-    })
+    loadFields(instituteId)
   }, [instituteId])
 
   // Toast helper

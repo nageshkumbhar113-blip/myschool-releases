@@ -7,7 +7,6 @@ import clsx from 'clsx'
 
 const TEMPLATE_TYPES = [
   { value: 'admission', label: 'Admission' },
-  { value: 'receipt',   label: 'Receipt'   },
   { value: 'lc',        label: 'LC'        },
   { value: 'bonafide',  label: 'Bonafide'  },
 ]
