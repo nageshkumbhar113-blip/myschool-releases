@@ -373,28 +373,82 @@
     .feat-card [data-lucide] { width: 24px; height: 24px; }
 
     @media (max-width: 768px) {
-      #nav { padding: 0 20px; }
+      #nav { padding: 0 16px; }
       .nav-links a:not(.nav-cta) { display: none; }
-      .feat-grid { grid-template-columns: 1fr 1fr; }
-      .why-grid { grid-template-columns: 1fr; }
+
+      /* Hero */
+      #hero { padding: 100px 16px 60px; }
+      .hero-title { letter-spacing: -1.5px; }
+      .hero-actions { gap: 10px; }
+      .btn-main { padding: 14px 24px; font-size: 15px; }
+      .btn-out  { padding: 13px 20px; font-size: 14px; }
+
+      /* Sections padding */
+      #features, #why-offline { padding: 60px 0; }
+      #pricing  { padding: 60px 0; }
+      #preview, #dl-sec, #steps, #contact { padding: 56px 0; }
+
+      /* Grids */
+      .feat-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 32px; }
+      .why-grid  { grid-template-columns: 1fr; }
       .pricing-plans, .cost-grid, .impact-grid { grid-template-columns: 1fr; }
       .insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .pricing-shell { gap: 14px; }
+      .pricing-plans { gap: 14px; }
+
+      /* Why offline */
+      .why-col { padding: 22px 18px; }
+      .why-vs-strip { padding: 20px 18px; }
+      .why-vs-strip p { font-size: 15px; }
+
+      /* Stats */
+      .stat-item { padding: 0 28px; }
+
+      /* Steps */
       .steps-row { flex-direction: column; align-items: center; gap: 28px; }
       .steps-row::before { display: none; }
-      .ct-card { flex-direction: column; text-align: center; }
+
+      /* Contact */
+      .ct-card { flex-direction: column; text-align: center; padding: 28px 20px; }
       .ct-btns { justify-content: center; }
+      .ct-ph { font-size: 28px; }
+
+      /* Download */
+      .dl-card { padding: 36px 20px; }
+      .btn-dl { padding: 16px 28px; font-size: 16px; width: 100%; justify-content: center; }
+      .dl-meta { gap: 18px; margin: 24px 0; }
+
+      /* App preview */
       .sb { display: none; }
-      .stat-item { padding: 0 28px; }
-      .dl-card { padding: 40px 24px; }
+      .app-ui { height: 340px; }
+
+      /* Footer */
       .foot-in { flex-direction: column; text-align: center; }
+
+      /* WhatsApp float */
       .wa-float span { display: none; }
-      .wa-float { padding: 14px; border-radius: 50%; }
+      .wa-float { padding: 14px; border-radius: 50%; bottom: 16px; right: 16px; }
+
+      /* Pricing */
+      .impact-line { padding: 18px 16px; }
+      .impact-line p { font-size: 15px; }
+      .pricing-cta { flex-direction: column; }
+      .pricing-cta .btn-main, .pricing-cta .btn-out { width: 100%; justify-content: center; }
     }
     @media (max-width: 520px) {
+      #hero { padding: 90px 14px 50px; }
+      .container { padding: 0 14px; }
       .feat-grid { grid-template-columns: 1fr; }
       .insight-grid { grid-template-columns: 1fr; }
       .stat-item { border-right: none; border-bottom: 1px solid var(--border); padding: 14px 0; width: 100%; }
-      .dl-meta { gap: 20px; }
+      .dl-meta { gap: 14px; }
+      .sec-title { letter-spacing: -1px; }
+      .price-main { font-size: 36px; }
+      .ct-ph { font-size: 24px; }
+      .hero-actions { flex-direction: column; align-items: center; }
+      .btn-main, .btn-out { width: 100%; justify-content: center; }
+      .why-col { padding: 18px 14px; }
+      .feat-card { padding: 20px 16px; }
     }
   </style>
 </head>
