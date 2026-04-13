@@ -40,7 +40,7 @@ export default function AddStudent() {
   const navigate = useNavigate()
   const { id } = useParams()
   const isEditMode = Boolean(id)
-  const { addStudent, activeStudent, loadStudent, updateStudent, updateFee, loading } = useStudentStore()
+  const { addStudent, activeStudent, loadStudent, updateStudent, loading } = useStudentStore()
   const { fields, loadFields } = useFieldStore()
   const { settings, loadSettings } = useSettingsStore()
 
@@ -271,14 +271,11 @@ export default function AddStudent() {
           board: data.board,
           academicYear: data.academicYear,
           status: data.status,
-        })
-
-        if (editingStudent.fee?.id) {
-          await updateFee(editingStudent.fee.id, {
+          feeChanges: {
             totalFee,
             discount,
-          })
-        }
+          },
+        })
 
         navigate(`/students/${editingStudent.id}`)
         return

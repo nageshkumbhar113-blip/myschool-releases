@@ -64,6 +64,18 @@ contextBridge.exposeInMainWorld('schoolApi', {
     get: (instituteId) => ipcRenderer.invoke('settings:get', instituteId),
     save: (instituteId, data) => ipcRenderer.invoke('settings:save', { instituteId, data }),
   },
+  schoolAuth: {
+    getStatus: () => ipcRenderer.invoke('school-auth:get-status'),
+    migrateLegacy: (record) => ipcRenderer.invoke('school-auth:migrate-legacy', record),
+    setup: (password) => ipcRenderer.invoke('school-auth:setup', password),
+    login: (password) => ipcRenderer.invoke('school-auth:login', password),
+    validateSession: (sessionToken) => ipcRenderer.invoke('school-auth:validate-session', sessionToken),
+    logout: (sessionToken) => ipcRenderer.invoke('school-auth:logout', sessionToken),
+    changePassword: (currentPassword, newPassword) => ipcRenderer.invoke('school-auth:change-password', { currentPassword, newPassword }),
+    regenerateRecoveryCode: (currentPassword) => ipcRenderer.invoke('school-auth:regenerate-recovery-code', currentPassword),
+    verifyRecoveryCode: (code) => ipcRenderer.invoke('school-auth:verify-recovery-code', code),
+    resetPasswordWithCode: (recoveryCode, newPassword) => ipcRenderer.invoke('school-auth:reset-password-with-code', { recoveryCode, newPassword }),
+  },
   documents: {
     list: (instituteId) => ipcRenderer.invoke('documents:list', instituteId),
     create: (payload) => ipcRenderer.invoke('documents:create', payload),

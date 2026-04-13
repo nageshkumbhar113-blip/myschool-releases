@@ -10,14 +10,17 @@
  *  3. Images              (logo, signature, stamp)
  */
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Settings as SettingsIcon, Save, Loader2,
   School, Users, Image, Upload, X, CheckCircle, RefreshCw,
+  Lock, Eye, EyeOff, KeyRound, AlertTriangle, Copy, Download,
 } from 'lucide-react'
-import useSettingsStore from '../store/useSettingsStore'
-import useAppStore      from '../store/useAppStore'
-import clsx             from 'clsx'
+import useSettingsStore    from '../store/useSettingsStore'
+import useAppStore         from '../store/useAppStore'
+import useSchoolAuthStore  from '../store/useSchoolAuthStore'
+import { validatePasswordRules } from '../utils/schoolAuth'
+import clsx                from 'clsx'
 
 // ── Image upload helper ────────────────────────────────────────────────────
 
@@ -132,6 +135,295 @@ function Field({ label, name, value, onChange, placeholder, required, textarea }
   )
 }
 
+// ── Security — password input helper ──────────────────────────────────────
+
+function PwdInput({ label, value, onChange, show, onToggleShow, placeholder, autoComplete }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</label>
+      <div className="relative">
+        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+          <Lock className="w-3.5 h-3.5 text-gray-400" />
+        </div>
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className="w-full pl-8 pr-9 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+        />
+        <button
+          type="button"
+          onClick={onToggleShow}
+          className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+        >
+          {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Security — regenerate recovery code modal ──────────────────────────────
+
+function RegenCodeModal({ recoveryCode, onDone }) {
+  const [copied,  setCopied]  = useState(false)
+  const [checked, setChecked] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(recoveryCode)
+    } catch {
+      const el = document.createElement('textarea')
+      el.value = recoveryCode
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleDownload = () => {
+    const content = [
+      'MY School — Recovery Code',
+      '========================',
+      '',
+      `Recovery Code: ${recoveryCode}`,
+      '',
+      'IMPORTANT: Keep this in a safe place. If you forget your password,',
+      'this code lets you reset it. This code will NOT be shown again.',
+      '',
+      `Generated: ${new Date().toLocaleString()}`,
+    ].join('\n')
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url; a.download = 'school-recovery-code.txt'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-sm">
+        <div className="p-5 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+              <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">New Recovery Code</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Save this — old code is now invalid</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="flex items-start gap-2 text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            This code will <strong className="ml-0.5">NOT</strong> be shown again.
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+            <p className="font-mono text-base font-bold text-gray-900 dark:text-white tracking-wider text-center break-all">
+              {recoveryCode}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={handleCopy}
+              className={clsx('flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium border transition-colors',
+                copied
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50')}>
+              {copied ? <><CheckCircle className="w-3.5 h-3.5" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
+            </button>
+            <button type="button" onClick={handleDownload}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 transition-colors">
+              <Download className="w-3.5 h-3.5" /> Download
+            </button>
+          </div>
+          <label className="flex items-start gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={checked} onChange={e => setChecked(e.target.checked)}
+              className="mt-0.5 w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <span className="text-xs text-gray-700 dark:text-gray-300">I have saved this code in a safe place.</span>
+          </label>
+          <button type="button" onClick={onDone} disabled={!checked}
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Security section card ──────────────────────────────────────────────────
+
+function SecuritySection() {
+  const { changePassword, regenerateRecoveryCode, loading } = useSchoolAuthStore()
+
+  // Change password state
+  const [curPwd,   setCurPwd]   = useState('')
+  const [newPwd,   setNewPwd]   = useState('')
+  const [confirmP, setConfirmP] = useState('')
+  const [showPwd,  setShowPwd]  = useState(false)
+  const [pwdError, setPwdError] = useState('')
+  const [pwdOk,    setPwdOk]    = useState(false)
+
+  // Regen state
+  const [regenPwd,   setRegenPwd]   = useState('')
+  const [showRegen,  setShowRegen]  = useState(false)
+  const [regenError, setRegenError] = useState('')
+  const [regenCode,  setRegenCode]  = useState(null)
+
+  const newPwdValidation = useMemo(() => {
+    if (!newPwd) return null
+    return validatePasswordRules(newPwd)
+  }, [newPwd])
+
+  const canChangePwd = useMemo(() => {
+    if (loading || !curPwd || !newPwd || !confirmP) return false
+    if (newPwdValidation && !newPwdValidation.valid) return false
+    if (newPwd !== confirmP) return false
+    return true
+  }, [loading, curPwd, newPwd, confirmP, newPwdValidation])
+
+  const handleChangePwd = async (e) => {
+    e.preventDefault()
+    setPwdError('')
+    setPwdOk(false)
+    const result = await changePassword(curPwd, newPwd)
+    if (result.ok) {
+      setPwdOk(true)
+      setCurPwd(''); setNewPwd(''); setConfirmP('')
+      setTimeout(() => setPwdOk(false), 3000)
+    } else {
+      setPwdError(result.error || 'Failed to change password.')
+    }
+  }
+
+  const handleRegen = async (e) => {
+    e.preventDefault()
+    setRegenError('')
+    const result = await regenerateRecoveryCode(regenPwd)
+    if (result.error) {
+      setRegenError(result.error)
+    } else {
+      setRegenCode(result.recoveryCode)
+      setRegenPwd('')
+    }
+  }
+
+  return (
+    <>
+      <div className="card p-5 space-y-6">
+        <SectionHeader icon={Lock} title="Security" />
+
+        {/* Change Password */}
+        <div>
+          <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-3">
+            Change Password
+          </h4>
+          <form onSubmit={handleChangePwd} className="space-y-3 max-w-sm">
+            <PwdInput
+              label="Current Password"
+              value={curPwd}
+              onChange={e => { setCurPwd(e.target.value); setPwdError('') }}
+              show={showPwd} onToggleShow={() => setShowPwd(v => !v)}
+              placeholder="Enter current password"
+              autoComplete="current-password"
+            />
+            <PwdInput
+              label="New Password"
+              value={newPwd}
+              onChange={e => { setNewPwd(e.target.value); setPwdError('') }}
+              show={showPwd} onToggleShow={() => setShowPwd(v => !v)}
+              placeholder="Min 8 chars, 1 number"
+              autoComplete="new-password"
+            />
+            {newPwd && newPwdValidation && !newPwdValidation.valid && (
+              <p className="text-xs text-red-500">{newPwdValidation.error}</p>
+            )}
+            <PwdInput
+              label="Confirm New Password"
+              value={confirmP}
+              onChange={e => { setConfirmP(e.target.value); setPwdError('') }}
+              show={showPwd} onToggleShow={() => setShowPwd(v => !v)}
+              placeholder="Re-enter new password"
+              autoComplete="new-password"
+            />
+            {confirmP && newPwd && confirmP !== newPwd && (
+              <p className="text-xs text-red-500">Passwords do not match.</p>
+            )}
+            {pwdError && (
+              <div className="flex items-start gap-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{pwdError}
+              </div>
+            )}
+            {pwdOk && (
+              <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-3 py-2">
+                <CheckCircle className="w-3.5 h-3.5" /> Password changed successfully!
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={!canChangePwd}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors"
+            >
+              {loading
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating…</>
+                : <><Lock className="w-4 h-4" /> Update Password</>
+              }
+            </button>
+          </form>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-gray-100 dark:border-gray-800" />
+
+        {/* Regenerate Recovery Code */}
+        <div>
+          <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
+            Recovery Code
+          </h4>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            Generate a new recovery code. The old code will be permanently invalidated.
+          </p>
+          <form onSubmit={handleRegen} className="space-y-3 max-w-sm">
+            <PwdInput
+              label="Confirm Current Password"
+              value={regenPwd}
+              onChange={e => { setRegenPwd(e.target.value); setRegenError('') }}
+              show={showRegen} onToggleShow={() => setShowRegen(v => !v)}
+              placeholder="Enter current password to confirm"
+              autoComplete="current-password"
+            />
+            {regenError && (
+              <div className="flex items-start gap-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{regenError}
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={!regenPwd || loading}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors"
+            >
+              {loading
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+                : <><KeyRound className="w-4 h-4" /> Regenerate Recovery Code</>
+              }
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {regenCode && (
+        <RegenCodeModal recoveryCode={regenCode} onDone={() => setRegenCode(null)} />
+      )}
+    </>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 const EMPTY = {
@@ -205,8 +497,7 @@ export default function Settings() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSaveSettings = async () => {
     if (!instituteId) return showToast('No institute selected', 'error')
     if (!form.schoolName.trim()) return showToast('School name is required', 'error')
 
@@ -247,7 +538,7 @@ export default function Settings() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
@@ -258,7 +549,8 @@ export default function Settings() {
           </p>
         </div>
         <button
-          type="submit"
+          type="button"
+          onClick={handleSaveSettings}
           disabled={saving || !dirty}
           className={clsx(
             'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors',
@@ -460,6 +752,9 @@ export default function Settings() {
         </>
       )}
 
+      {/* Security section — outside the settings form, has its own forms */}
+      {!loading && <SecuritySection />}
+
       {/* Toast */}
       {toast && (
         <div className={clsx(
@@ -472,6 +767,6 @@ export default function Settings() {
           {toast.msg}
         </div>
       )}
-    </form>
+    </div>
   )
 }

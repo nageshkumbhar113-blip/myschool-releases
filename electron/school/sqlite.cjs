@@ -73,6 +73,7 @@ function ensureSchema(database) {
       page_size TEXT NOT NULL DEFAULT 'A4',
       background_image TEXT,
       field_mappings_json TEXT NOT NULL DEFAULT '[]',
+      excluded_field_keys_json TEXT NOT NULL DEFAULT '[]',
       is_locked INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
@@ -118,6 +119,7 @@ function ensureSchema(database) {
     CREATE TABLE IF NOT EXISTS students (
       id TEXT PRIMARY KEY,
       institute_id TEXT NOT NULL,
+      admission_no TEXT,
       roll_number TEXT,
       full_name TEXT NOT NULL,
       class_name TEXT,
@@ -219,6 +221,20 @@ function ensureSchema(database) {
       expires_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS school_auth (
+      id TEXT PRIMARY KEY,
+      password_hash TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      recovery_code_hash TEXT,
+      recovery_salt TEXT,
+      session_token_hash TEXT,
+      login_attempts INTEGER NOT NULL DEFAULT 0,
+      lock_until TEXT,
+      last_login_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_sessions_expires
       ON super_admin_sessions(expires_at);
   `)
@@ -236,6 +252,24 @@ function ensureSchema(database) {
   addCol('ALTER TABLE institutes ADD COLUMN payment_status TEXT')
   addCol('ALTER TABLE students ADD COLUMN lc_printed_at TEXT')
   addCol('ALTER TABLE students ADD COLUMN transferred_at TEXT')
+  addCol('ALTER TABLE students ADD COLUMN admission_no TEXT')
+  addCol("ALTER TABLE templates ADD COLUMN header_config_json TEXT NOT NULL DEFAULT '{}'")
+  addCol("ALTER TABLE templates ADD COLUMN excluded_field_keys_json TEXT NOT NULL DEFAULT '[]'")
+  try {
+    database.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_students_admission_unique
+        ON students(institute_id, admission_no)
+        WHERE deleted_at IS NULL AND admission_no IS NOT NULL AND trim(admission_no) <> '';
+    `)
+  } catch {}
+  database.prepare(`
+    UPDATE students
+    SET admission_no = json_extract(dynamic_fields, '$.admissionNo')
+    WHERE (admission_no IS NULL OR trim(admission_no) = '')
+      AND deleted_at IS NULL
+      AND json_extract(dynamic_fields, '$.admissionNo') IS NOT NULL
+      AND trim(json_extract(dynamic_fields, '$.admissionNo')) <> ''
+  `).run()
 }
 
 function getDb() {

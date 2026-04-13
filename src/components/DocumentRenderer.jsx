@@ -234,9 +234,14 @@ export default function DocumentRenderer({
     }
 
     compute()
-    const ro = new ResizeObserver(compute)
-    ro.observe(wrapper)
-    return () => ro.disconnect()
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(compute)
+      ro.observe(wrapper)
+      return () => ro.disconnect()
+    }
+
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
   }, [docWidth, mode])
 
   // ── The document page ─────────────────────────────────────────────────────

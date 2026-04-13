@@ -89,11 +89,17 @@ export function useVirtualList(items, itemHeight, { overscan = 5, containerHeigh
     if (containerHeight) return
     const el = containerRef.current
     if (!el) return
-    const ro = new ResizeObserver(([entry]) => {
-      setMeasured(entry.contentRect.height)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
+    const syncMeasured = () => setMeasured(el.clientHeight)
+    syncMeasured()
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(([entry]) => {
+        setMeasured(entry.contentRect.height)
+      })
+      ro.observe(el)
+      return () => ro.disconnect()
+    }
+    window.addEventListener('resize', syncMeasured)
+    return () => window.removeEventListener('resize', syncMeasured)
   }, [containerHeight])
 
   const height = containerHeight ?? measured

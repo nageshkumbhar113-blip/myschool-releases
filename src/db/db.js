@@ -67,4 +67,9 @@ db.version(7).stores({
   super_admin_sessions: null,
 })
 
+// Version 8 — school-level password auth (single record: id = 'config')
+db.version(8).stores({
+  school_auth: 'id, createdAt',
+})
+
 export default db

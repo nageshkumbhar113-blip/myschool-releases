@@ -108,6 +108,38 @@ export const schoolDataService = {
       return ensureSchoolApi().settings.save(instituteId, data)
     },
   },
+  schoolAuth: {
+    getStatus() {
+      return ensureSchoolApi().schoolAuth.getStatus()
+    },
+    migrateLegacy(record) {
+      return ensureSchoolApi().schoolAuth.migrateLegacy(record)
+    },
+    setup(password) {
+      return ensureSchoolApi().schoolAuth.setup(password)
+    },
+    login(password) {
+      return ensureSchoolApi().schoolAuth.login(password)
+    },
+    validateSession(sessionToken) {
+      return ensureSchoolApi().schoolAuth.validateSession(sessionToken)
+    },
+    logout(sessionToken) {
+      return ensureSchoolApi().schoolAuth.logout(sessionToken)
+    },
+    changePassword(currentPassword, newPassword) {
+      return ensureSchoolApi().schoolAuth.changePassword(currentPassword, newPassword)
+    },
+    regenerateRecoveryCode(currentPassword) {
+      return ensureSchoolApi().schoolAuth.regenerateRecoveryCode(currentPassword)
+    },
+    verifyRecoveryCode(code) {
+      return ensureSchoolApi().schoolAuth.verifyRecoveryCode(code)
+    },
+    resetPasswordWithCode(recoveryCode, newPassword) {
+      return ensureSchoolApi().schoolAuth.resetPasswordWithCode(recoveryCode, newPassword)
+    },
+  },
   documents: {
     list(instituteId) {
       return ensureSchoolApi().documents.list(instituteId)

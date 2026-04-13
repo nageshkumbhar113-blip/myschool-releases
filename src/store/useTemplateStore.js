@@ -2,7 +2,9 @@
 import schoolDataService from '../services/schoolDataService'
 import { PRESETS } from '../utils/presets'
 
-const DEFAULT_PAGE_SIZE = 'A4'
+function getDefaultPageSize(type = 'admission') {
+  return type === 'lc' || type === 'bonafide' ? 'A3' : 'A4'
+}
 const DEFAULT_MAPPING_PROPS = {
   width: 25,
   height: 5,
@@ -36,9 +38,10 @@ const useTemplateStore = create((set, get) => ({
       instituteId,
       name,
       type,
-      pageSize: DEFAULT_PAGE_SIZE,
+      pageSize: getDefaultPageSize(type),
       backgroundImage: null,
       fieldMappings: [],
+      excludedFieldKeys: [],
       isLocked: false,
     })
     set((state) => ({ templates: [...state.templates, template], activeTemplate: { ...template }, selectedFieldId: null }))
@@ -89,9 +92,10 @@ const useTemplateStore = create((set, get) => ({
       instituteId,
       name: preset.name,
       type: presetType,
-      pageSize: DEFAULT_PAGE_SIZE,
+      pageSize: getDefaultPageSize(presetType),
       backgroundImage: null,
       fieldMappings,
+      excludedFieldKeys: [],
       isLocked: false,
     })
 

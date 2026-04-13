@@ -11,13 +11,15 @@
  * Body → Simple ordered list, up/down buttons, add/remove.
  */
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
   FileText, Award, LayoutTemplate,
   ArrowLeft, Eye, EyeOff, Save, Trash2,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, X,
   CheckCircle, Star, Loader2, AlertCircle,
   GraduationCap, Settings2,
+  Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw,
+  Upload, School,
 } from 'lucide-react'
 import useTemplateStore from '../store/useTemplateStore'
 import useFieldStore    from '../store/useFieldStore'
@@ -57,6 +59,35 @@ const COLOR = {
 const SETTINGS_KEYS = new Set(['schoolName','address','logo','udiseCode','boardName','phone','principalName','clerkName','signature','stamp'])
 const MANUAL_KEYS   = new Set(['reasonForLeaving','remark','dateOfIssue','purpose'])
 const REQUIRED_KEYS = new Set(['studentName','dateOfBirth'])
+
+// ── School Info field config — add new fields here, they auto-appear in the panel ─
+const SCHOOL_INFO_TEXT_FIELDS = [
+  { key: 'organizationName', label: 'Organization Name', placeholder: 'e.g. Shri Dnyaneshwar Shikshan Sanstha', colorKey: 'organizationNameColor' },
+  { key: 'schoolName',       label: 'School Name *',     placeholder: 'e.g. Sunrise English Medium School',     colorKey: 'schoolNameColor' },
+  { key: 'address',          label: 'Address',            placeholder: 'Full school address',                    textarea: true },
+  { key: 'udiseCode',        label: 'UDISE Code',         placeholder: 'e.g. 27040101101' },
+  { key: 'boardName',        label: 'Board Name',         placeholder: 'e.g. SSC Board, CBSE' },
+  { key: 'phone',            label: 'Phone',              placeholder: 'e.g. +91 98765 43210' },
+  { key: 'registrationNo',   label: 'Registration No.',   placeholder: '' },
+  { key: 'sscIndexNo',       label: 'SSC Index No.',      placeholder: '' },
+  { key: 'schoolCode',       label: 'School Code',        placeholder: '' },
+  { key: 'principalName',    label: 'Principal Name',     placeholder: '' },
+  { key: 'clerkName',        label: 'Clerk Name',         placeholder: '' },
+]
+const SCHOOL_INFO_IMAGE_FIELDS = [
+  { key: 'logo',      label: 'Logo' },
+  { key: 'signature', label: 'Signature' },
+  { key: 'stamp',     label: 'Stamp' },
+]
+
+function readAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload  = (e) => resolve(e.target.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 const AUTO_MAPPING_PROPS = {
   width: 25,
   height: 5,
@@ -77,11 +108,28 @@ function getDefaultInputType(field) {
   return 'text'
 }
 
-function ensureTemplateHasAllBodyFields(template, fields = []) {
-  if (!template) return { template, fields, missingCount: 0 }
+function resolveTemplateFieldKey(fieldId, fields = [], templateType = 'document') {
+  const field = fields.find((item) => item.id === fieldId)
+  if (field?.key) return field.key
 
-  const nextMappings = [...(template.fieldMappings ?? [])]
+  if (typeof fieldId !== 'string') return null
+  const prefix = `__auto__${templateType ?? 'document'}__`
+  if (!fieldId.startsWith(prefix)) return null
+
+  return fieldId.slice(prefix.length) || null
+}
+
+function ensureTemplateHasAllBodyFields(template, fields = []) {
+  if (!template) return { template, fields, missingCount: 0, prunedCount: 0, changed: false }
+
+  const excludedKeys = new Set(template.excludedFieldKeys ?? [])
+  const existingMappings = template.fieldMappings ?? []
+  const nextMappings = existingMappings.filter((mapping) => {
+    const fieldKey = resolveTemplateFieldKey(mapping.fieldId, fields, template.type)
+    return !fieldKey || !excludedKeys.has(fieldKey)
+  })
   const mappedIds = new Set(nextMappings.map((mapping) => mapping.fieldId))
+  const pruned = existingMappings.length - nextMappings.length
   let nextY = nextMappings.length
   let appended = 0
 
@@ -89,6 +137,7 @@ function ensureTemplateHasAllBodyFields(template, fields = []) {
     if (!field || field.deletedAt) return
     if (field.type === 'static') return
     if (SETTINGS_KEYS.has(field.key)) return
+    if (excludedKeys.has(field.key)) return
     if (mappedIds.has(field.id)) return
 
     nextMappings.push({
@@ -108,7 +157,9 @@ function ensureTemplateHasAllBodyFields(template, fields = []) {
     appended += 1
   })
 
-  if (appended === 0) return { template, fields, missingCount: 0 }
+  if (appended === 0 && pruned === 0) {
+    return { template, fields, missingCount: 0, prunedCount: 0, changed: false }
+  }
 
   return {
     template: {
@@ -117,6 +168,8 @@ function ensureTemplateHasAllBodyFields(template, fields = []) {
     },
     fields,
     missingCount: appended,
+    prunedCount: pruned,
+    changed: true,
   }
 }
 
@@ -176,6 +229,102 @@ function TypeSelector({ templates, fields, onSelect, loading }) {
         })}
       </div>
       <p className="text-xs text-gray-400">★ Active template generate करताना वापरला जातो.</p>
+    </div>
+  )
+}
+
+// ── Mini Image Field (compact, for sidebar) ───────────────────────────────
+
+function MiniImageField({ label, value, onChange }) {
+  const inputRef = useRef(null)
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    const b64 = await readAsBase64(file)
+    onChange(b64)
+    e.target.value = ''
+  }
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <label className="text-xs text-gray-600 dark:text-gray-400 w-20 shrink-0">{label}</label>
+      <div className="flex items-center gap-2 flex-1 justify-end">
+        {value ? (
+          <div className="flex items-center gap-1.5">
+            <img src={value} alt={label} className="h-8 max-w-[80px] object-contain rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-0.5" />
+            <button type="button" onClick={() => onChange('')}
+              className="w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 flex-shrink-0">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => inputRef.current?.click()}
+            className="flex items-center gap-1 px-2.5 py-1.5 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-500 hover:border-primary-400 hover:text-primary-600 transition-colors">
+            <Upload className="w-3 h-3" /> Upload
+          </button>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+    </div>
+  )
+}
+
+// ── School Info Panel ─────────────────────────────────────────────────────
+
+function SchoolInfoPanel({ form, onChange }) {
+  const set = (key, val) => onChange({ ...form, [key]: val })
+  return (
+    <div className="card p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <School className="w-4 h-4 text-gray-400" />
+        <p className="text-sm font-semibold text-gray-900 dark:text-white">School Information</p>
+      </div>
+      <p className="text-xs text-gray-400 -mt-1">इथे बदललेले Settings मध्ये पण save होते.</p>
+
+      {SCHOOL_INFO_TEXT_FIELDS.map(f => (
+        <div key={f.key}>
+          <label className="text-xs text-gray-600 dark:text-gray-400 block mb-1">{f.label}</label>
+          <div className="flex gap-2">
+            {f.textarea ? (
+              <textarea
+                value={form[f.key] ?? ''}
+                onChange={e => set(f.key, e.target.value)}
+                placeholder={f.placeholder}
+                rows={2}
+                className="input text-sm py-1.5 resize-none flex-1"
+              />
+            ) : (
+              <input
+                type="text"
+                value={form[f.key] ?? ''}
+                onChange={e => set(f.key, e.target.value)}
+                placeholder={f.placeholder}
+                className="input text-sm py-1.5 flex-1"
+              />
+            )}
+            {f.colorKey && (
+              <input
+                type="color"
+                value={form[f.colorKey] || '#111111'}
+                onChange={e => set(f.colorKey, e.target.value)}
+                className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer p-0.5 bg-white dark:bg-gray-800 shrink-0"
+                title="Color"
+              />
+            )}
+          </div>
+        </div>
+      ))}
+
+      <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Images</p>
+        {SCHOOL_INFO_IMAGE_FIELDS.map(f => (
+          <MiniImageField
+            key={f.key}
+            label={f.label}
+            value={form[f.key] ?? ''}
+            onChange={val => set(f.key, val)}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -337,10 +486,24 @@ function HeaderConfigPanel({ config, onChange, pageSize = 'A4', onPageSizeChange
         )}
       </div>
 
-      {/* Text sizes */}
+      {/* Organization Name */}
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Organization Name</p>
+        <Toggle label="Organization Name दाखवा" cfgKey="showOrganizationName" />
+        {config.showOrganizationName !== false && (
+          <>
+            <SliderRow label="Org. Name Size" cfgKey="organizationNameSize" min={8} max={28} />
+            <AlignRow label="Org. Name Align" cfgKey="organizationNameAlign" />
+            <NumberStepRow label="Org. Name X Offset" cfgKey="organizationNameOffsetX" step={5} axis="x" />
+            <NumberStepRow label="Org. Name Y Offset" cfgKey="organizationNameOffsetY" step={5} axis="y" />
+          </>
+        )}
+      </div>
+
+      {/* School Name */}
       <div className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">School Name</p>
-        <SliderRow label="School Name" cfgKey="schoolNameSize" min={14} max={36} />
+        <SliderRow label="School Name Size" cfgKey="schoolNameSize" min={14} max={36} />
         <Toggle label="Curved School Name" cfgKey="schoolNameCurved" />
         {config.schoolNameCurved && (
           <NumberStepRow label="Curve Depth" cfgKey="schoolNameCurveDepth" step={4} axis="y" />
@@ -350,6 +513,7 @@ function HeaderConfigPanel({ config, onChange, pageSize = 'A4', onPageSizeChange
         <NumberStepRow label="Name Y Offset" cfgKey="schoolNameOffsetY" step={5} axis="y" />
       </div>
 
+      {/* Address */}
       <div className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Address</p>
         <Toggle label="Address दाखवा" cfgKey="showAddress" />
@@ -363,9 +527,11 @@ function HeaderConfigPanel({ config, onChange, pageSize = 'A4', onPageSizeChange
         )}
       </div>
 
+      {/* Meta Line */}
       <div className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Meta Line</p>
-        <Toggle label="Board/UDISE/Ph दाखवा" cfgKey="showMeta" />
+        <p className="text-[10px] text-gray-400 -mt-1">Board | UDISE | Reg.No | SSC Index | School Code | Ph</p>
+        <Toggle label="Meta Line दाखवा" cfgKey="showMeta" />
         {config.showMeta && (
           <>
             <SliderRow label="Meta Size" cfgKey="metaSize" min={7} max={14} />
@@ -376,6 +542,7 @@ function HeaderConfigPanel({ config, onChange, pageSize = 'A4', onPageSizeChange
         )}
       </div>
 
+      {/* Certificate Title */}
       <div className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Certificate Title</p>
         <SliderRow label="Title Size" cfgKey="titleSize" min={12} max={28} />
@@ -815,16 +982,20 @@ export default function TemplateBuilder() {
     removeFieldFromCanvas, updateActiveTemplate, markTemplateActive, clearTemplateActive,
   } = useTemplateStore()
   const { fields, loadFields }     = useFieldStore()
-  const { settings, loadSettings } = useSettingsStore()
+  const { settings, loadSettings, saveSettings } = useSettingsStore()
 
   const [selectedType,  setSelectedType]  = useState(null)
   const [isDirty,       setIsDirty]       = useState(false)
   const [isCreating,    setIsCreating]    = useState(false)
   const [toast,         setToast]         = useState(null)
   const [headerConfig,  setHeaderConfig]  = useState(DEFAULT_HEADER_CONFIG)
+  const [isFullscreen,  setIsFullscreen]  = useState(false)
+  const [previewZoom,   setPreviewZoom]   = useState(0.65)
   const [leftPanelTab,  setLeftPanelTab]  = useState('header')
   const [isSaving,      setIsSaving]      = useState(false)
   const [admissionSelection, setAdmissionSelection] = useState([])
+  const [settingsForm,  setSettingsForm]  = useState({})
+  const settingsLoadedRef = useRef(false)
 
   const instituteId = currentInstituteId || null
 
@@ -834,6 +1005,14 @@ export default function TemplateBuilder() {
     loadFields(instituteId)
     loadSettings(instituteId)
   }, [instituteId])
+
+  // Populate settingsForm from store (only on first load — don't overwrite user edits)
+  useEffect(() => {
+    if (settings && !settingsLoadedRef.current) {
+      setSettingsForm(settings)
+      settingsLoadedRef.current = true
+    }
+  }, [settings])
 
   // Load headerConfig from template when activeTemplate changes
   useEffect(() => {
@@ -848,6 +1027,15 @@ export default function TemplateBuilder() {
     if (selectedType !== 'admission' || isDirty) return
     setAdmissionSelection(getSelectedAdmissionFieldKeys(fields))
   }, [selectedType, fields, isDirty])
+
+  const documentFieldContext = useMemo(
+    () => ensureLcBonafidePrintFields(activeTemplate, fields, { includeMissingMappings: false }),
+    [activeTemplate, fields]
+  )
+  const syncedDocumentContext = useMemo(
+    () => ensureTemplateHasAllBodyFields(documentFieldContext.template ?? activeTemplate, documentFieldContext.fields),
+    [activeTemplate, documentFieldContext]
+  )
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -972,15 +1160,21 @@ export default function TemplateBuilder() {
       return
     }
 
-    // Save headerConfig into template before saving
-    updateActiveTemplate({ headerConfig })
+    // Save headerConfig into template + school info into settings
+    updateActiveTemplate({
+      headerConfig,
+      fieldMappings: syncedDocumentContext.template?.fieldMappings ?? activeTemplate?.fieldMappings ?? [],
+    })
     const saved = await saveTemplate()
     if (saved) {
       await markTemplateActive(saved.id)
+      if (instituteId && Object.keys(settingsForm).length > 0) {
+        await saveSettings(instituteId, settingsForm)
+      }
       setIsDirty(false)
       showToast('Template saved ✓')
     }
-  }, [selectedType, instituteId, admissionSelection, saveTemplate, markTemplateActive, updateActiveTemplate, headerConfig])
+  }, [selectedType, instituteId, admissionSelection, saveTemplate, markTemplateActive, updateActiveTemplate, headerConfig, settingsForm, saveSettings, syncedDocumentContext, activeTemplate])
 
   const handleDelete = useCallback(async () => {
     if (!activeTemplate) return
@@ -997,7 +1191,10 @@ export default function TemplateBuilder() {
     let targetId = activeTemplate.id
 
     if (isDirty) {
-      updateActiveTemplate({ headerConfig })
+      updateActiveTemplate({
+        headerConfig,
+        fieldMappings: syncedDocumentContext.template?.fieldMappings ?? activeTemplate?.fieldMappings ?? [],
+      })
       const saved = await saveTemplate()
       if (!saved) return
       targetId = saved.id
@@ -1006,7 +1203,7 @@ export default function TemplateBuilder() {
 
     await markTemplateActive(targetId)
     showToast('Active template updated')
-  }, [activeTemplate, isDirty, headerConfig, updateActiveTemplate, saveTemplate, markTemplateActive])
+  }, [activeTemplate, isDirty, headerConfig, updateActiveTemplate, saveTemplate, markTemplateActive, syncedDocumentContext])
 
   const handleToggleActive = useCallback(async () => {
     if (!activeTemplate) return
@@ -1022,13 +1219,24 @@ export default function TemplateBuilder() {
 
   const handleAddField = useCallback((field) => {
     addFieldToCanvas(field)
+    if (activeTemplate?.excludedFieldKeys?.includes(field.key)) {
+      updateActiveTemplate({
+        excludedFieldKeys: activeTemplate.excludedFieldKeys.filter((key) => key !== field.key),
+      })
+    }
     setIsDirty(true)
-  }, [addFieldToCanvas])
+  }, [activeTemplate, addFieldToCanvas, updateActiveTemplate])
 
   const handleRemoveField = useCallback((fieldId) => {
+    const fieldKey = resolveTemplateFieldKey(fieldId, fields, activeTemplate?.type)
     removeFieldFromCanvas(fieldId)
+    if (fieldKey) {
+      updateActiveTemplate({
+        excludedFieldKeys: Array.from(new Set([...(activeTemplate?.excludedFieldKeys ?? []), fieldKey])),
+      })
+    }
     setIsDirty(true)
-  }, [removeFieldFromCanvas])
+  }, [activeTemplate, fields, removeFieldFromCanvas, updateActiveTemplate])
 
   const handleMove = useCallback((fieldId, direction) => {
     if (!activeTemplate) return
@@ -1044,6 +1252,11 @@ export default function TemplateBuilder() {
 
   const handleHeaderConfig = useCallback((cfg) => {
     setHeaderConfig(cfg)
+    setIsDirty(true)
+  }, [])
+
+  const handleSchoolInfoChange = useCallback((form) => {
+    setSettingsForm(form)
     setIsDirty(true)
   }, [])
 
@@ -1069,18 +1282,9 @@ export default function TemplateBuilder() {
     setIsDirty(true)
   }, [])
 
-  const documentFieldContext = useMemo(
-    () => ensureLcBonafidePrintFields(activeTemplate, fields, { includeMissingMappings: false }),
-    [activeTemplate, fields]
-  )
-  const syncedDocumentContext = useMemo(
-    () => ensureTemplateHasAllBodyFields(documentFieldContext.template ?? activeTemplate, documentFieldContext.fields),
-    [activeTemplate, documentFieldContext]
-  )
-
   useEffect(() => {
     if (!activeTemplate || selectedType === 'admission') return
-    if (!syncedDocumentContext.missingCount) return
+    if (!syncedDocumentContext.changed) return
     if (!syncedDocumentContext.template?.fieldMappings) return
 
     updateActiveTemplate({
@@ -1123,7 +1327,12 @@ export default function TemplateBuilder() {
     const selectedCount = admissionSelection.length
 
     return (
-      <div className="flex flex-col gap-4 h-[calc(100vh-8rem)]">
+      <div className={clsx(
+        'flex flex-col gap-4',
+        isFullscreen
+          ? 'fixed inset-0 z-40 p-4 bg-gray-50 dark:bg-gray-950'
+          : 'h-[calc(100vh-8rem)]',
+      )}>
         <div className="flex items-center gap-3 shrink-0">
           <button onClick={handleBack} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <ArrowLeft className="w-4 h-4" />
@@ -1137,14 +1346,23 @@ export default function TemplateBuilder() {
           {isDirty && (
             <span className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-lg border border-amber-200 dark:border-amber-800">Unsaved</span>
           )}
-          <button
-            onClick={handleSave}
-            disabled={!isDirty || isSaving}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              disabled={!isDirty || isSaving}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save
+            </button>
+            <button
+              onClick={() => setIsFullscreen(v => !v)}
+              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-colors"
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
         <div className="grid flex-1 min-h-0 grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
@@ -1158,11 +1376,34 @@ export default function TemplateBuilder() {
             />
           </div>
 
-          <div className="min-h-0 overflow-y-auto">
-            <div className="mx-auto w-full max-w-xl">
-              <AdmissionPreview fields={fields} selectedKeys={admissionSelection} />
-              <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-                Total optional fields enabled: <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedCount}</span>
+          <div className="min-h-0 overflow-y-auto flex flex-col">
+            {/* Zoom toolbar for admission preview */}
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-3 py-2 mb-2 bg-gray-50/95 dark:bg-gray-950/95 backdrop-blur border-b border-gray-100 dark:border-gray-800 shrink-0">
+              <span className="text-xs text-gray-400">Admission Form Preview</span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPreviewZoom(z => Math.max(0.3, parseFloat((z - 0.1).toFixed(1))))} title="Zoom out"
+                  className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-xs font-mono font-semibold text-gray-700 dark:text-gray-300 min-w-[36px] text-center">
+                  {Math.round(previewZoom * 100)}%
+                </span>
+                <button onClick={() => setPreviewZoom(z => Math.min(1.5, parseFloat((z + 0.1).toFixed(1))))} title="Zoom in"
+                  className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => setPreviewZoom(0.65)} title="Reset zoom"
+                  className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">
+                  <RotateCcw className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+            <div className="flex justify-center px-2 pb-4">
+              <div style={{ zoom: previewZoom }}>
+                <AdmissionPreview fields={fields} selectedKeys={admissionSelection} />
+                <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+                  Total optional fields enabled: <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedCount}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1191,7 +1432,12 @@ export default function TemplateBuilder() {
   })
 
   return (
-    <div className="flex flex-col gap-4 h-[calc(100vh-8rem)]">
+    <div className={clsx(
+      'flex flex-col gap-4',
+      isFullscreen
+        ? 'fixed inset-0 z-40 p-4 bg-gray-50 dark:bg-gray-950'
+        : 'h-[calc(100vh-8rem)]',
+    )}>
 
       {/* Header */}
       <div className="flex items-center gap-3 shrink-0">
@@ -1218,6 +1464,14 @@ export default function TemplateBuilder() {
           <button onClick={handleDelete} className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800 transition-colors">
             <Trash2 className="w-4 h-4" />
           </button>
+          {/* Fullscreen toggle */}
+          <button
+            onClick={() => setIsFullscreen(v => !v)}
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-colors"
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
         </div>
       </div>
 
@@ -1226,29 +1480,25 @@ export default function TemplateBuilder() {
 
         {/* Left — config + fields */}
 	        <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
-	          <div className="grid grid-cols-2 gap-2 shrink-0">
-	            <button
-	              onClick={() => setLeftPanelTab('header')}
-	              className={clsx(
-	                'rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-	                leftPanelTab === 'header'
-	                  ? 'bg-primary-600 text-white'
-	                  : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-	              )}
-	            >
-	              Header Settings
-	            </button>
-	            <button
-	              onClick={() => setLeftPanelTab('body')}
-	              className={clsx(
-	                'rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-	                leftPanelTab === 'body'
-	                  ? 'bg-primary-600 text-white'
-	                  : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-	              )}
-	            >
-	              Body Fields
-	            </button>
+	          <div className="grid grid-cols-3 gap-1.5 shrink-0">
+	            {[
+	              { key: 'header', label: 'Header' },
+	              { key: 'info',   label: 'School Info' },
+	              { key: 'body',   label: 'Body Fields' },
+	            ].map(tab => (
+	              <button
+	                key={tab.key}
+	                onClick={() => setLeftPanelTab(tab.key)}
+	                className={clsx(
+	                  'rounded-xl px-2 py-2 text-xs font-medium transition-colors',
+	                  leftPanelTab === tab.key
+	                    ? 'bg-primary-600 text-white'
+	                    : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+	                )}
+	              >
+	                {tab.label}
+	              </button>
+	            ))}
 	          </div>
 	          <div className="min-h-0 overflow-y-auto pr-1">
 
@@ -1260,6 +1510,11 @@ export default function TemplateBuilder() {
               pageSize={activeTemplate?.pageSize ?? 'A4'}
               onPageSizeChange={handlePageSize}
             />
+          )}
+
+          {/* School Info */}
+          {leftPanelTab === 'info' && (
+            <SchoolInfoPanel form={settingsForm} onChange={handleSchoolInfoChange} />
           )}
 
           {/* Body Fields */}
@@ -1334,21 +1589,54 @@ export default function TemplateBuilder() {
         </div>
 
         {/* Right — Live Preview */}
-        <div className="overflow-y-auto flex justify-center">
-          <div className="w-full max-w-md">
-            <div className="text-xs text-gray-400 text-center mb-2">Live Preview — Sample data सह</div>
-            {isDirty && (
-              <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-                Header/logo changes preview मध्ये लगेच दिसतात, पण Generate LC / PDF मध्ये शेवटचा saved active templateच वापरला जातो.
-              </div>
-            )}
-            <LivePreview
-              template={previewTemplate}
-              fields={effectiveFields}
-              settings={settings}
-              docType={selectedType}
-              headerConfig={headerConfig}
-            />
+        <div className="overflow-y-auto flex flex-col">
+          {/* Zoom toolbar */}
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-3 py-2 mb-2 bg-gray-50/95 dark:bg-gray-950/95 backdrop-blur border-b border-gray-100 dark:border-gray-800 shrink-0">
+            <span className="text-xs text-gray-400">Live Preview — Sample data सह</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPreviewZoom(z => Math.max(0.3, parseFloat((z - 0.1).toFixed(1))))}
+                title="Zoom out"
+                className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-xs font-mono font-semibold text-gray-700 dark:text-gray-300 min-w-[36px] text-center">
+                {Math.round(previewZoom * 100)}%
+              </span>
+              <button
+                onClick={() => setPreviewZoom(z => Math.min(1.5, parseFloat((z + 0.1).toFixed(1))))}
+                title="Zoom in"
+                className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setPreviewZoom(0.65)}
+                title="Reset zoom"
+                className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+
+          {/* Preview content */}
+          <div className="flex justify-center px-2 pb-4">
+            <div style={{ zoom: previewZoom, transformOrigin: 'top center' }}>
+              {isDirty && (
+                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                  Header/logo changes preview मध्ये लगेच दिसतात, पण Generate LC / PDF मध्ये शेवटचा saved active templateच वापरला जातो.
+                </div>
+              )}
+              <LivePreview
+                template={previewTemplate}
+                fields={effectiveFields}
+                settings={settings}
+                docType={selectedType}
+                headerConfig={headerConfig}
+              />
+            </div>
           </div>
         </div>
       </div>

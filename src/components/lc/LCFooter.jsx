@@ -26,9 +26,9 @@ export default function LCFooter({ settings, dateOfIssue = '' }) {
       display:        'flex',
       justifyContent: 'space-between',
       alignItems:     'flex-end',
-      padding:        '6mm 12mm 10mm',
+      padding:        '5mm 12mm 7mm',
       borderTop:      '1px solid #ccc',
-      marginTop:      '8mm',
+      marginTop:      '4mm',
     }}>
       <div style={{ textAlign: 'center' }}>
         {sigImg(signature, 'Clerk Signature')}

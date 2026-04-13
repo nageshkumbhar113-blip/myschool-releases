@@ -32,6 +32,53 @@ function computeFee(totalFee, discount = 0, paidAmount = 0) {
   }
 }
 
+function normalizeAdmissionNo(value) {
+  return String(value ?? '').trim()
+}
+
+function sumInstallments(installments = []) {
+  return (installments ?? []).reduce((sum, item) => sum + toNumber(item?.amount), 0)
+}
+
+function computeFeeSnapshot({ totalFee, discount, installments = [] }) {
+  const paidAmount = sumInstallments(installments)
+  const total = Math.max(0, toNumber(totalFee))
+  const disc = Math.min(Math.max(0, toNumber(discount)), total)
+  const effectiveFee = total - disc
+
+  if (paidAmount > effectiveFee) {
+    throw new Error(`Paid amount (Rs ${paidAmount}) exceeds effective fee (Rs ${effectiveFee}).`)
+  }
+
+  return computeFee(total, disc, paidAmount)
+}
+
+function mapStudentPersistenceError(error) {
+  const message = String(error?.message ?? '')
+  if (message.includes('students.institute_id, students.admission_no')) {
+    return new Error('Admission number already exists for this school.')
+  }
+  return error
+}
+
+function assertAdmissionNoAvailable(database, instituteId, admissionNo, currentStudentId = null) {
+  if (!admissionNo) return
+
+  const row = database.prepare(`
+    SELECT id
+    FROM students
+    WHERE institute_id = ?
+      AND admission_no = ?
+      AND deleted_at IS NULL
+      AND (? IS NULL OR id <> ?)
+    LIMIT 1
+  `).get(instituteId, admissionNo, currentStudentId, currentStudentId)
+
+  if (row?.id) {
+    throw new Error('Admission number already exists for this school.')
+  }
+}
+
 function getInstituteCode(name) {
   if (!name) return 'SCH'
   const words = String(name).trim().split(/\s+/).filter(Boolean)
@@ -444,14 +491,14 @@ function registerSchoolDataHandlers() {
     const prefix = `ADM-${year}-`
 
     const rows = database.prepare(`
-      SELECT dynamic_fields FROM students
+      SELECT admission_no, dynamic_fields FROM students
       WHERE institute_id = ? AND deleted_at IS NULL
     `).all(instituteId)
 
     let maxSeq = 0
     for (const row of rows) {
       const df = safeParseJson(row.dynamic_fields, {})
-      const admNo = df.admissionNo || ''
+      const admNo = normalizeAdmissionNo(row.admission_no || df.admissionNo || '')
       if (admNo.startsWith(prefix)) {
         const seq = parseInt(admNo.slice(prefix.length), 10)
         if (!isNaN(seq) && seq > maxSeq) maxSeq = seq
@@ -468,9 +515,11 @@ function registerSchoolDataHandlers() {
       const now = getNowIso()
       const dynamicFields = { ...(input.dynamicFields || {}) }
       const fullName = String(dynamicFields.studentName || '').trim()
+      const admissionNo = normalizeAdmissionNo(dynamicFields.admissionNo)
 
       if (!input.instituteId) throw new Error('instituteId is required')
       if (!fullName) throw new Error('studentName is required')
+      assertAdmissionNoAvailable(database, input.instituteId, admissionNo)
 
       const studentId = crypto.randomUUID()
       const feeId = crypto.randomUUID()
@@ -478,15 +527,16 @@ function registerSchoolDataHandlers() {
 
       database.prepare(`
         INSERT INTO students (
-          id, institute_id, roll_number, full_name, class_name, medium, board,
+          id, institute_id, admission_no, roll_number, full_name, class_name, medium, board,
           academic_year, status, dynamic_fields, created_at, updated_at, deleted_at
         ) VALUES (
-          @id, @institute_id, @roll_number, @full_name, @class_name, @medium, @board,
+          @id, @institute_id, @admission_no, @roll_number, @full_name, @class_name, @medium, @board,
           @academic_year, @status, @dynamic_fields, @created_at, @updated_at, NULL
         )
       `).run({
         id: studentId,
         institute_id: input.instituteId,
+        admission_no: admissionNo || null,
         roll_number: input.rollNumber ?? '',
         full_name: fullName,
         class_name: input.class ?? '',
@@ -537,57 +587,122 @@ function registerSchoolDataHandlers() {
       return created
     })
 
-    return createStudentTx(payload)
+    try {
+      return createStudentTx(payload)
+    } catch (error) {
+      throw mapStudentPersistenceError(error)
+    }
   })
 
   ipcMain.handle('students:update', async (_event, { studentId, changes }) => {
     const database = getDb()
-    const before = getStudent(database, studentId)
-    if (!before) throw new Error('Student not found')
+    const updateStudentTx = database.transaction((targetStudentId, nextChanges) => {
+      const before = getStudent(database, targetStudentId)
+      if (!before) throw new Error('Student not found')
 
-    const dynamicFields = { ...(changes?.dynamicFields ?? before.dynamicFields ?? {}) }
-    const fullName = String(dynamicFields.studentName || before.fullName || '').trim()
-    if (!fullName) throw new Error('studentName is required')
+      const dynamicFields = { ...(nextChanges?.dynamicFields ?? before.dynamicFields ?? {}) }
+      const fullName = String(dynamicFields.studentName || before.fullName || '').trim()
+      const admissionNo = normalizeAdmissionNo(dynamicFields.admissionNo)
+      if (!fullName) throw new Error('studentName is required')
+      assertAdmissionNoAvailable(database, before.instituteId, admissionNo, targetStudentId)
 
-    const updatedAt = getNowIso()
+      const updatedAt = getNowIso()
 
-    database.prepare(`
-      UPDATE students
-      SET
-        roll_number = @roll_number,
-        full_name = @full_name,
-        class_name = @class_name,
-        medium = @medium,
-        board = @board,
-        academic_year = @academic_year,
-        status = @status,
-        dynamic_fields = @dynamic_fields,
-        updated_at = @updated_at
-      WHERE id = @id
-        AND deleted_at IS NULL
-    `).run({
-      id: studentId,
-      roll_number: changes?.rollNumber ?? before.rollNumber ?? '',
-      full_name: fullName,
-      class_name: changes?.class ?? before.class ?? '',
-      medium: changes?.medium ?? before.medium ?? 'English',
-      board: changes?.board ?? before.board ?? 'State Board',
-      academic_year: changes?.academicYear ?? before.academicYear ?? '',
-      status: changes?.status ?? before.status ?? 'active',
-      dynamic_fields: JSON.stringify(dynamicFields),
-      updated_at: updatedAt,
+      database.prepare(`
+        UPDATE students
+        SET
+          admission_no = @admission_no,
+          roll_number = @roll_number,
+          full_name = @full_name,
+          class_name = @class_name,
+          medium = @medium,
+          board = @board,
+          academic_year = @academic_year,
+          status = @status,
+          dynamic_fields = @dynamic_fields,
+          updated_at = @updated_at
+        WHERE id = @id
+          AND deleted_at IS NULL
+      `).run({
+        id: targetStudentId,
+        admission_no: admissionNo || null,
+        roll_number: nextChanges?.rollNumber ?? before.rollNumber ?? '',
+        full_name: fullName,
+        class_name: nextChanges?.class ?? before.class ?? '',
+        medium: nextChanges?.medium ?? before.medium ?? 'English',
+        board: nextChanges?.board ?? before.board ?? 'State Board',
+        academic_year: nextChanges?.academicYear ?? before.academicYear ?? '',
+        status: nextChanges?.status ?? before.status ?? 'active',
+        dynamic_fields: JSON.stringify(dynamicFields),
+        updated_at: updatedAt,
+      })
+
+      const feeChanges = nextChanges?.feeChanges ?? null
+      if (feeChanges && before.fee?.id) {
+        const currentInstallments = before.fee.installments ?? []
+        const computed = computeFeeSnapshot({
+          totalFee: feeChanges.totalFee ?? before.fee.totalFee,
+          discount: feeChanges.discount ?? before.fee.discount,
+          installments: currentInstallments,
+        })
+
+        database.prepare(`
+          UPDATE fees
+          SET
+            academic_year = @academic_year,
+            total_fee = @total_fee,
+            discount = @discount,
+            effective_fee = @effective_fee,
+            paid_amount = @paid_amount,
+            remaining_amount = @remaining_amount,
+            installments_json = @installments_json,
+            due_date = @due_date,
+            updated_at = @updated_at
+          WHERE id = @id
+            AND deleted_at IS NULL
+        `).run({
+          id: before.fee.id,
+          academic_year: feeChanges.academicYear ?? before.fee.academicYear ?? '',
+          total_fee: computed.totalFee,
+          discount: computed.discount,
+          effective_fee: computed.effectiveFee,
+          paid_amount: computed.paidAmount,
+          remaining_amount: computed.remainingAmount,
+          installments_json: JSON.stringify(currentInstallments),
+          due_date: feeChanges.dueDate !== undefined ? feeChanges.dueDate : before.fee.dueDate ?? null,
+          updated_at: updatedAt,
+        })
+      }
+
+      const after = getStudent(database, targetStudentId)
+      insertAuditLog(database, {
+        instituteId: before.instituteId,
+        action: 'UPDATE',
+        tableName: 'students',
+        recordId: targetStudentId,
+        before,
+        after,
+      })
+
+      if (before.fee?.id && nextChanges?.feeChanges) {
+        insertAuditLog(database, {
+          instituteId: before.instituteId,
+          action: 'UPDATE',
+          tableName: 'fees',
+          recordId: before.fee.id,
+          before: before.fee,
+          after: after?.fee ?? null,
+        })
+      }
+
+      return after
     })
 
-    const after = getStudent(database, studentId)
-    insertAuditLog(database, {
-      instituteId: before.instituteId,
-      action: 'UPDATE',
-      tableName: 'students',
-      recordId: studentId,
-      before,
-      after,
-    })
-    return after
+    try {
+      return updateStudentTx(studentId, changes)
+    } catch (error) {
+      throw mapStudentPersistenceError(error)
+    }
   })
 
   ipcMain.handle('students:delete', async (_event, studentId) => {
@@ -650,11 +765,11 @@ function registerSchoolDataHandlers() {
     if (!before) throw new Error('Fee record not found')
 
     const dueDate = changes?.dueDate !== undefined ? changes.dueDate : before.dueDate
-    const computed = computeFee(
-      changes?.totalFee ?? before.totalFee,
-      changes?.discount ?? before.discount,
-      before.paidAmount,
-    )
+    const computed = computeFeeSnapshot({
+      totalFee: changes?.totalFee ?? before.totalFee,
+      discount: changes?.discount ?? before.discount,
+      installments: before.installments ?? [],
+    })
 
     database.prepare(`
       UPDATE fees

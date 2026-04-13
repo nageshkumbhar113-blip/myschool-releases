@@ -22,6 +22,8 @@ import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
 
 function DefaultFallback({ error, errorInfo, onReset }) {
   const isDev = import.meta.env.DEV
+  const isElectron = typeof window !== 'undefined' && Boolean(window.electronAPI?.isElectron)
+  const showErrorSummary = (isDev || isElectron) && error
 
   return (
     <div className="min-h-[400px] flex items-center justify-center p-6">
@@ -39,6 +41,11 @@ function DefaultFallback({ error, errorInfo, onReset }) {
           <p className="text-sm text-gray-500 dark:text-gray-400">
             An unexpected error occurred on this page. Your data is safe — try refreshing or go back to the dashboard.
           </p>
+          {showErrorSummary && (
+            <p className="mt-2 text-xs text-red-500 dark:text-red-400 break-all">
+              {error.toString()}
+            </p>
+          )}
         </div>
 
         {/* Dev error details */}

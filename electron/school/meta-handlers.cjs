@@ -67,6 +67,8 @@ function mapTemplate(row) {
     pageSize: row.page_size ?? 'A4',
     backgroundImage: row.background_image ?? null,
     fieldMappings: parseJson(row.field_mappings_json, []),
+    excludedFieldKeys: parseJson(row.excluded_field_keys_json, []),
+    headerConfig: parseJson(row.header_config_json, {}),
     isLocked: Boolean(row.is_locked),
     isActive: Boolean(row.is_active),
     createdAt: row.created_at,
@@ -298,8 +300,8 @@ function upsertTemplate(database, record) {
   const now = record.updatedAt || getNowIso()
   const createdAt = record.createdAt || now
   database.prepare(`
-    INSERT INTO templates (id, institute_id, name, template_type, page_size, background_image, field_mappings_json, is_locked, is_active, created_at, updated_at, deleted_at)
-    VALUES (@id, @institute_id, @name, @template_type, @page_size, @background_image, @field_mappings_json, @is_locked, @is_active, @created_at, @updated_at, @deleted_at)
+    INSERT INTO templates (id, institute_id, name, template_type, page_size, background_image, field_mappings_json, excluded_field_keys_json, header_config_json, is_locked, is_active, created_at, updated_at, deleted_at)
+    VALUES (@id, @institute_id, @name, @template_type, @page_size, @background_image, @field_mappings_json, @excluded_field_keys_json, @header_config_json, @is_locked, @is_active, @created_at, @updated_at, @deleted_at)
     ON CONFLICT(id) DO UPDATE SET
       institute_id = excluded.institute_id,
       name = excluded.name,
@@ -307,6 +309,8 @@ function upsertTemplate(database, record) {
       page_size = excluded.page_size,
       background_image = excluded.background_image,
       field_mappings_json = excluded.field_mappings_json,
+      excluded_field_keys_json = excluded.excluded_field_keys_json,
+      header_config_json = excluded.header_config_json,
       is_locked = excluded.is_locked,
       is_active = excluded.is_active,
       created_at = excluded.created_at,
@@ -320,6 +324,8 @@ function upsertTemplate(database, record) {
     page_size: record.pageSize || 'A4',
     background_image: record.backgroundImage ?? null,
     field_mappings_json: JSON.stringify(record.fieldMappings || []),
+    excluded_field_keys_json: JSON.stringify(record.excludedFieldKeys || []),
+    header_config_json: JSON.stringify(record.headerConfig || {}),
     is_locked: record.isLocked ? 1 : 0,
     is_active: record.isActive ? 1 : 0,
     created_at: createdAt,

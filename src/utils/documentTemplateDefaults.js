@@ -21,7 +21,7 @@ function createSyntheticField({ template, spec, order }) {
   }
 }
 
-function resolveMappedFieldKey(mapping, fieldById, templateType, allowedKeys) {
+function resolveMappedFieldKey(mapping, fieldById, templateType, allowedKeys = null) {
   const mappedField = fieldById.get(mapping.fieldId)
   if (mappedField?.key) return mappedField.key
 
@@ -30,6 +30,7 @@ function resolveMappedFieldKey(mapping, fieldById, templateType, allowedKeys) {
   if (!mapping.fieldId.startsWith(prefix)) return null
 
   const key = mapping.fieldId.slice(prefix.length)
+  if (!allowedKeys) return key || null
   return allowedKeys.has(key) ? key : null
 }
 
@@ -40,6 +41,8 @@ export function ensureLcBonafidePrintFields(template, fields = [], options = {})
     return { template, fields }
   }
 
+  const excludedKeys = new Set(template.excludedFieldKeys ?? [])
+
   const presetFields = (PRESETS[template.type]?.fields ?? []).filter((field) =>
     LC_BONAFIDE_PRINT_KEYS.has(field.key)
   )
@@ -49,15 +52,19 @@ export function ensureLcBonafidePrintFields(template, fields = [], options = {})
   const nextFields = [...fields]
   const fieldByKey = new Map(nextFields.map((field) => [field.key, field]))
   const fieldById = new Map(nextFields.map((field) => [field.id, field]))
+  const filteredMappings = (template.fieldMappings ?? []).filter((mapping) => {
+    const key = resolveMappedFieldKey(mapping, fieldById, template.type)
+    return !key || !excludedKeys.has(key)
+  })
   const allowedKeys = new Set(presetFields.map((field) => field.key))
   const mappedKeys = new Set(
-    (template.fieldMappings ?? [])
+    filteredMappings
       .map((mapping) => resolveMappedFieldKey(mapping, fieldById, template.type, allowedKeys))
       .filter(Boolean)
   )
 
   let syntheticOrder = nextFields.length
-  let nextZIndex = (template.fieldMappings ?? []).reduce(
+  let nextZIndex = filteredMappings.reduce(
     (max, mapping) => Math.max(max, Number(mapping.zIndex ?? 0) || 0),
     0
   )
@@ -79,6 +86,7 @@ export function ensureLcBonafidePrintFields(template, fields = [], options = {})
       fieldById.set(fieldDef.id, fieldDef)
     }
 
+    if (excludedKeys.has(spec.key)) return
     if (!includeMissingMappings || mappedKeys.has(spec.key)) return
 
     nextZIndex += 1
@@ -99,14 +107,18 @@ export function ensureLcBonafidePrintFields(template, fields = [], options = {})
     mappedKeys.add(spec.key)
   })
 
-  if (!appendedMappings.length && nextFields.length === fields.length) {
+  if (
+    !appendedMappings.length &&
+    nextFields.length === fields.length &&
+    filteredMappings.length === (template.fieldMappings ?? []).length
+  ) {
     return { template, fields }
   }
 
   return {
     template: {
       ...template,
-      fieldMappings: [...(template.fieldMappings ?? []), ...appendedMappings],
+      fieldMappings: [...filteredMappings, ...appendedMappings],
     },
     fields: nextFields,
   }

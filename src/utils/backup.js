@@ -4,7 +4,7 @@ import schoolDataService from '../services/schoolDataService'
 export const BACKUP_VERSION = '1.0'
 export const SUPPORTED_VERSIONS = ['1.0']
 
-const TABLES = ['institutes', 'fields', 'templates', 'students', 'fees', 'receipts', 'counters', 'settings', 'audit_logs', 'documents']
+const TABLES = ['institutes', 'fields', 'templates', 'students', 'fees', 'receipts', 'counters', 'settings', 'audit_logs', 'documents', 'school_auth']
 
 export async function exportBackup(instituteId = null, instituteName = '') {
   const { payload, counts } = await schoolDataService.backup.exportData({ instituteId, instituteName })

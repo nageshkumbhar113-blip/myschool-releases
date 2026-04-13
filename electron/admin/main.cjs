@@ -2,7 +2,9 @@
 const path = require('path')
 const http = require('http')
 const os = require('os')
-const BOOT_LOG = path.join(os.tmpdir(), 'my-school-admin-boot.log')
+const DEFAULT_SMOKE_DIR = path.join(os.tmpdir(), 'my_school_admin_smoke')
+const SMOKE_DIR = process.env.MY_SCHOOL_SMOKE_DIR || DEFAULT_SMOKE_DIR
+const BOOT_LOG = path.join(SMOKE_DIR, 'my-school-admin-boot.log')
 
 function bootLog(message) {
   try {
@@ -40,7 +42,7 @@ let smokeReported = false
 
 function getSmokeReportPath() {
   return process.env.MY_SCHOOL_SMOKE_REPORT
-    || path.join(app.getPath('temp'), 'my-school-admin-smoke.json')
+    || path.join(app.getPath('userData'), 'my-school-admin-smoke.json')
 }
 
 function writeSmokeReport(report) {
@@ -91,7 +93,7 @@ const smokeExit = () => setTimeout(() => {
 }, SMOKE_TIMEOUT)
 
 if (isSmokeTest) {
-  const smokeDataDir = path.join(os.tmpdir(), 'my_school_admin_smoke')
+  const smokeDataDir = SMOKE_DIR
   fs.mkdirSync(smokeDataDir, { recursive: true })
   app.setPath('userData', smokeDataDir)
   app.commandLine.appendSwitch('disable-gpu')

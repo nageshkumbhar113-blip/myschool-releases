@@ -4,9 +4,10 @@ import {
   LayoutDashboard, FileText, Users, CreditCard,
   Receipt, FolderOpen, BarChart3, Database, Shield, Layout,
   Menu, Moon, Sun, Bell, ChevronRight, GraduationCap,
-  Settings, ArrowUpCircle, AlertTriangle,
+  Settings, ArrowUpCircle, AlertTriangle, LogOut,
 } from 'lucide-react'
 import useAppStore from '../store/useAppStore'
+import useSchoolAuthStore from '../store/useSchoolAuthStore'
 import { getCurrentInstituteName, getDaysUntilExpiry, getLicenseExpiry } from '../utils/dbHelpers'
 import clsx from 'clsx'
 
@@ -33,6 +34,8 @@ export default function DashboardLayout() {
     sidebarOpen, toggleSidebar,
     mobileSidebarOpen, toggleMobileSidebar, closeMobileSidebar,
   } = useAppStore()
+
+  const logout = useSchoolAuthStore((s) => s.logout)
 
   const location      = useLocation()
   const instituteName = getCurrentInstituteName()
@@ -118,9 +121,26 @@ export default function DashboardLayout() {
 
         {/* Sidebar footer */}
         <div className={clsx(
-          'p-3 border-t border-gray-200 dark:border-gray-800 shrink-0',
-          !sidebarOpen && 'lg:flex lg:justify-center',
+          'p-3 border-t border-gray-200 dark:border-gray-800 shrink-0 space-y-2',
+          !sidebarOpen && 'lg:flex lg:flex-col lg:items-center lg:space-y-2',
         )}>
+          {/* Logout button */}
+          <button
+            type="button"
+            onClick={logout}
+            title="Logout"
+            className={clsx(
+              'w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium',
+              'text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400',
+              'hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors',
+              !sidebarOpen && 'lg:justify-center lg:px-2',
+            )}
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            {(sidebarOpen || mobileSidebarOpen) && <span>Logout</span>}
+          </button>
+
+          {/* User info */}
           <div className={clsx('flex items-center gap-3', !sidebarOpen && 'lg:flex-col')}>
             <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center shrink-0">
               <span className="text-white text-xs font-bold">A</span>

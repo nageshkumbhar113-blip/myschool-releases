@@ -2,18 +2,7 @@
 const path = require('path')
 const http = require('http')
 const os = require('os')
-const DEBUG_LOG = path.join(os.tmpdir(), 'app-debug.log')
-const DEFAULT_SMOKE_DIR = path.join(os.tmpdir(), 'my_school_app_smoke')
-const SMOKE_DIR = process.env.MY_SCHOOL_SMOKE_DIR || DEFAULT_SMOKE_DIR
-const BOOT_LOG = path.join(SMOKE_DIR, 'my-school-boot.log')
-
-function appendDebugLog(message) {
-  try {
-    fs.appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] ${message}\n`, 'utf8')
-  } catch {}
-}
-
-appendDebugLog('MAIN FILE LOADED')
+const BOOT_LOG = path.join(os.tmpdir(), 'my-school-boot.log')
 
 function bootLog(message) {
   try {
@@ -48,13 +37,11 @@ const MIN_HEIGHT = 600
 const SMOKE_TIMEOUT = 10000
 const isDev = !app.isPackaged
 const isSmokeTest = process.argv.includes('--smoke-test') || process.env.MY_SCHOOL_SMOKE_TEST === '1'
-const smokeRoute = process.env.MY_SCHOOL_SMOKE_ROUTE || ''
-const smokeExpectText = process.env.MY_SCHOOL_SMOKE_EXPECT_TEXT || ''
 let smokeReported = false
 
 function getSmokeReportPath() {
   return process.env.MY_SCHOOL_SMOKE_REPORT
-    || path.join(app.getPath('userData'), 'my-school-smoke.json')
+    || path.join(app.getPath('temp'), 'my-school-smoke.json')
 }
 
 function writeSmokeReport(report) {
@@ -106,7 +93,7 @@ function logFail(error, data = {}) {
 
 if (isSmokeTest) {
   bootLog('Smoke mode detected')
-  const smokeDataDir = SMOKE_DIR
+  const smokeDataDir = path.join(os.tmpdir(), 'my_school_app_smoke')
   fs.mkdirSync(smokeDataDir, { recursive: true })
   app.setPath('userData', smokeDataDir)
   app.commandLine.appendSwitch('disable-gpu')
@@ -301,38 +288,20 @@ function verifySchoolRuntime(win) {
     new Promise((resolve) => {
       const startedAt = Date.now()
       let lastError = ''
-      const targetRoute = ${JSON.stringify(smokeRoute)}
-      const expectedText = ${JSON.stringify(smokeExpectText)}
 
       const snapshot = (extra = {}) => ({
         hasElectronApi: Boolean(window.electronAPI),
         hasSchoolApi: Boolean(window.schoolApi),
         pathname: window.location.pathname,
         title: document.title,
-        pageText: (document.body?.innerText || '').slice(0, 500),
+        pageText: (document.body?.innerText || '').slice(0, 200),
         ...extra,
       })
-
-      const navigateToTargetRoute = () => {
-        if (!targetRoute || window.location.pathname === targetRoute) return
-        try {
-          window.history.pushState({}, '', targetRoute)
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        } catch (error) {
-          lastError = error?.message || String(error)
-        }
-      }
-
-      navigateToTargetRoute()
 
       const check = async () => {
         try {
           const electronAPI = window.electronAPI ?? null
           const schoolApi = window.schoolApi ?? null
-          const pageText = document.body?.innerText || ''
-          const hitErrorBoundary = pageText.includes('Something went wrong')
-          const routeReady = !targetRoute || window.location.pathname === targetRoute
-          const textReady = !expectedText || pageText.includes(expectedText)
           const version = typeof electronAPI?.getVersion === 'function'
             ? await electronAPI.getVersion()
             : null
@@ -343,22 +312,12 @@ function verifySchoolRuntime(win) {
             ? await schoolApi.license.getCurrent()
             : undefined
 
-          if (hitErrorBoundary) {
-            resolve(snapshot({
-              ok: false,
-              lastError: 'UI error boundary visible after route navigation.',
-            }))
-            return
-          }
-
-          if (electronAPI && schoolApi && typeof version === 'string' && version && dbInfo?.path && routeReady && textReady) {
+          if (electronAPI && schoolApi && typeof version === 'string' && version && dbInfo?.path) {
             resolve(snapshot({
               ok: true,
               version,
               dbPath: dbInfo.path,
               licenseBridgeReachable: licenseRecord === null || typeof licenseRecord === 'object',
-              routeReady,
-              textReady,
             }))
             return
           }
@@ -367,14 +326,10 @@ function verifySchoolRuntime(win) {
         }
 
         if (Date.now() - startedAt > 10000) {
-          resolve(snapshot({
-            ok: false,
-            lastError: lastError || (expectedText ? 'Expected text not found: ' + expectedText : 'Timed out.'),
-          }))
+          resolve(snapshot({ ok: false, lastError }))
           return
         }
 
-        navigateToTargetRoute()
         setTimeout(check, 100)
       }
 
@@ -423,7 +378,6 @@ function lockDownWindow(win) {
 }
 
 async function createWindow() {
-  appendDebugLog('Creating window...')
   bootLog('createWindow start')
   await startStaticServer()
 

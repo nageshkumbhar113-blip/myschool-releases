@@ -23,26 +23,27 @@ if (!fs.existsSync(exePath)) {
   process.exit(1)
 }
 
-const reportPath = path.join(
+const smokeDir = path.join(
   os.tmpdir(),
+  target === 'admin' ? 'my_school_admin_smoke' : 'my_school_app_smoke',
+)
+const reportPath = path.join(
+  smokeDir,
   target === 'admin' ? 'my-school-admin-smoke.json' : 'my-school-smoke.json',
 )
 const bootLogPath = path.join(
-  os.tmpdir(),
+  smokeDir,
   target === 'admin' ? 'my-school-admin-boot.log' : 'my-school-boot.log',
 )
-if (fs.existsSync(reportPath)) {
-  fs.unlinkSync(reportPath)
-}
-if (fs.existsSync(bootLogPath)) {
-  fs.unlinkSync(bootLogPath)
-}
+fs.rmSync(smokeDir, { recursive: true, force: true })
+fs.mkdirSync(smokeDir, { recursive: true })
 
-const child = spawn(exePath, [], {
+const child = spawn(exePath, ['--smoke-test'], {
   cwd: path.dirname(exePath),
   stdio: 'ignore',
   env: {
     ...process.env,
+    MY_SCHOOL_SMOKE_DIR: smokeDir,
     MY_SCHOOL_SMOKE_TEST: '1',
     MY_SCHOOL_SMOKE_REPORT: reportPath,
   },

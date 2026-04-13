@@ -43,6 +43,8 @@ export default function LCDocumentLayout({
     widthMm: pageWidthMm,
     heightMm: pageHeightMm,
   } = getPageSizeConfig(pageSize)
+  const pageWidth = mode === 'print' ? pageWidthMm : pageWidthPx
+  const pageHeight = mode === 'print' ? pageHeightMm : pageHeightPx
   const mappings = template?.fieldMappings ?? []
   const bodyMappings = mappings.filter((mapping) => {
     const fieldDef = fields.find((field) => field.id === mapping.fieldId)
@@ -65,17 +67,22 @@ export default function LCDocumentLayout({
     }
 
     compute()
-    const ro = new ResizeObserver(compute)
-    ro.observe(wrapper)
-    return () => ro.disconnect()
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(compute)
+      ro.observe(wrapper)
+      return () => ro.disconnect()
+    }
+
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
   }, [mode, pageWidthPx])
 
   const page = (
     <div
       style={{
-        width: mode === 'print' ? pageWidthMm : pageWidthPx,
-        minHeight: mode === 'print' ? pageHeightMm : pageHeightPx,
-        height: mode === 'print' ? 'auto' : pageHeightPx,
+        width: pageWidth,
+        minHeight: pageHeight,
+        height: pageHeight,
         background: '#fff',
         color: '#000',
         fontFamily: 'Georgia, "Times New Roman", serif',
@@ -95,71 +102,77 @@ export default function LCDocumentLayout({
         </>
       )}
 
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <LCHeader settings={settings} title={title} headerConfig={template?.headerConfig ?? {}} />
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
+        <div style={{ flexShrink: 0 }}>
+          <LCHeader settings={settings} title={title} headerConfig={template?.headerConfig ?? {}} />
+        </div>
 
-        <div style={{ padding: '4mm 12mm', flex: 1 }}>
-          {bodyMappings.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: '#aaa', fontSize: 12 }}>
-              No body fields added
-            </div>
-          ) : (
-            bodyMappings.map((mapping) => {
-              const fieldDef = fields.find((field) => field.id === mapping.fieldId)
-              if (!fieldDef) return null
+        <div style={{ padding: '3mm 12mm', flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            {bodyMappings.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: '#aaa', fontSize: 12 }}>
+                No body fields added
+              </div>
+            ) : (
+              bodyMappings.map((mapping) => {
+                const fieldDef = fields.find((field) => field.id === mapping.fieldId)
+                if (!fieldDef) return null
 
-              const rawValue = resolveValue({ mapping, fieldDef, student, settings, manualData })
-              const value = isEmptyDocumentValue(rawValue)
-                ? ''
-                : String(rawValue)
+                const rawValue = resolveValue({ mapping, fieldDef, student, settings, manualData })
+                const value = isEmptyDocumentValue(rawValue)
+                  ? ''
+                  : String(rawValue)
 
-              return (
-                <div
-                  key={mapping.fieldId}
-                  style={{
-                    display: 'flex',
-                    borderBottom: '1px dotted #ccc',
-                    padding: '5px 0',
-                    alignItems: 'flex-start',
-                  }}
-                >
+                return (
                   <div
+                    key={mapping.fieldId}
                     style={{
-                      width: '45%',
-                      fontSize: 12,
-                      color: '#555',
-                      paddingRight: 8,
-                      flexShrink: 0,
+                      display: 'flex',
+                      borderBottom: '1px dotted #ccc',
+                      padding: '4px 0',
+                      alignItems: 'flex-start',
                     }}
                   >
-                    {fieldDef.label} :
+                    <div
+                      style={{
+                        width: '45%',
+                        fontSize: 12,
+                        color: '#555',
+                        paddingRight: 8,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {fieldDef.label} :
+                    </div>
+                    <div
+                      style={{
+                        flex: 1,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: value ? '#000' : mode === 'preview' ? '#ef4444' : '#000',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {value || (mode === 'preview' ? `[${fieldDef.label}]` : '')}
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      flex: 1,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: value ? '#000' : mode === 'preview' ? '#ef4444' : '#000',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {value || (mode === 'preview' ? `[${fieldDef.label}]` : '')}
-                  </div>
-                </div>
-              )
-            })
-          )}
+                )
+              })
+            )}
+          </div>
 
           {/* LC moral character note */}
           {isLC && (
-            <div style={{ marginTop: '6mm', fontSize: 12, color: '#222', fontStyle: 'italic' }}>
+            <div style={{ marginTop: '4mm', fontSize: 12, color: '#222', fontStyle: 'italic', flexShrink: 0 }}>
               To the best of my knowledge he/she bears a good moral character.
             </div>
           )}
         </div>
 
-        <LCFooter settings={settings} dateOfIssue={effectiveDateOfIssue} />
+        <div style={{ marginTop: 'auto', flexShrink: 0 }}>
+          <LCFooter settings={settings} dateOfIssue={effectiveDateOfIssue} />
+        </div>
       </div>
     </div>
   )

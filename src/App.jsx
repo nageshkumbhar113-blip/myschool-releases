@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LicenseGuard          from './components/LicenseGuard'
+import SchoolAuthGuard       from './components/SchoolAuthGuard'
 import SuperAdminGuard       from './components/SuperAdminGuard'
 import ErrorBoundary         from './components/ErrorBoundary'
 import { Toaster }           from './components/Toast'
@@ -69,7 +70,9 @@ export default function App() {
               path="/"
               element={
                 <LicenseGuard>
-                  <DashboardLayout />
+                  <SchoolAuthGuard>
+                    <DashboardLayout />
+                  </SchoolAuthGuard>
                 </LicenseGuard>
               }
             >

@@ -46,10 +46,10 @@
     left: 0;
     width: var(--print-page-width, 210mm) !important;
     min-height: var(--print-page-height, 297mm) !important;
-    height: auto !important;
+    height: var(--print-page-height, 297mm) !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow: visible !important;
+    overflow: hidden !important;
     background: #fff !important;
     z-index: 2147483647 !important;
   }
@@ -61,21 +61,10 @@
     visibility: hidden !important;
   }
 
-  /*
-   * The page-div rendered by LCDocumentLayout has overflow:hidden inline.
-   * When body content is tall, the footer gets pushed beyond the page bounds
-   * and clipped. Override to visible so footer (stamp + signatures) prints.
-   */
-  .doc-print-root > div {
-    overflow: visible !important;
-    height: auto !important;
-  }
-
-  /*
-   * The inner flex column inside the page-div must also not clip the footer.
-   */
+  .doc-print-root > div,
   .doc-print-root > div > div {
-    overflow: visible !important;
+    height: 100% !important;
+    min-height: 100% !important;
   }
 }
 

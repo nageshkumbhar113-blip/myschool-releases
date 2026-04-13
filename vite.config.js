@@ -1,45 +1,49 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
+const BUILD_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob:",
+  "connect-src 'self' https://connectivity.gstatic.com",
+  "worker-src 'self' blob:",
+  "frame-src 'self' data: blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ')
+
+const DEV_CSP = [
+  "default-src 'self' data: blob: https: http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://127.0.0.1:* http://localhost:*",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob: https:",
+  "connect-src 'self' https://connectivity.gstatic.com http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*",
+  "worker-src 'self' blob:",
+  "frame-src 'self' data: blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ')
+
+function cspMetaPlugin(isBuild) {
+  return {
+    name: 'app-csp-meta',
+    transformIndexHtml(html) {
+      return html.replace('__CSP__', isBuild ? BUILD_CSP : DEV_CSP)
+    },
+  }
+}
+
+export default defineConfig(({ command }) => ({
   base: './',
 
   plugins: [
     react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
-
-      manifest: {
-        name: 'MY School Management',
-        short_name: 'MySchool',
-        description: 'School Management System',
-        theme_color: '#4f46e5',
-        background_color: '#ffffff',
-        display: 'standalone',
-        icons: [
-          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-        ],
-      },
-
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        navigateFallback: 'index.html',
-        runtimeCaching: [
-          {
-            urlPattern: /assets\/pdf-(engine|fonts)-.*\.js$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'pdf-chunks',
-              expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 * 30 },
-            },
-          },
-        ],
-      },
-    }),
+    cspMetaPlugin(command === 'build'),
   ],
 
   resolve: {
@@ -67,4 +71,4 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
-})
+}))

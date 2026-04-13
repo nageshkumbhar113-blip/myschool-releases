@@ -29,9 +29,14 @@ function useVirtualList(items) {
     const el = containerRef.current
     if (!el) return
     setViewH(el.clientHeight)
-    const ro = new ResizeObserver(() => setViewH(el.clientHeight))
-    ro.observe(el)
-    return () => ro.disconnect()
+    const syncHeight = () => setViewH(el.clientHeight)
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(syncHeight)
+      ro.observe(el)
+      return () => ro.disconnect()
+    }
+    window.addEventListener('resize', syncHeight)
+    return () => window.removeEventListener('resize', syncHeight)
   }, [])
 
   const startIdx = Math.max(0, Math.floor(scrollTop / ROW_H) - BUFFER)

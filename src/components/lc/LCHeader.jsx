@@ -105,12 +105,11 @@ export default function LCHeader({
       )}
 
       {/* Organization Name */}
-      {organizationName && (
+      {cfg.showOrganizationName !== false && organizationName && (
         <div
           style={{
-            width:         '100%',
-            textAlign:     'center',
-            fontSize:      (cfg.schoolNameSize ?? 22) * 0.65,
+            ...textBlockStyle(cfg.organizationNameAlign, cfg.organizationNameOffsetX, cfg.organizationNameOffsetY),
+            fontSize:      cfg.organizationNameSize ?? 14,
             fontWeight:    600,
             color:         organizationNameColor || '#333',
             letterSpacing: 0.5,
