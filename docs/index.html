@@ -468,6 +468,37 @@
       .why-vs-strip p { font-size: 14px; }
       .save-box .amt { font-size: 24px; }
     }
+
+    /* ===== MOBILE BOTTOM NAV ===== */
+    .mob-nav {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+      background: #fff;
+      border-top: 2px solid #ede9fe;
+      box-shadow: 0 -4px 24px rgba(124,58,237,0.13);
+      height: 62px;
+      align-items: stretch;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .mob-tab {
+      flex: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+      color: #9ca3af; font-size: 10px; font-weight: 700; letter-spacing: .3px;
+      text-decoration: none; padding: 6px 4px;
+      transition: color .2s, background .2s;
+      border-radius: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mob-tab svg { width: 22px; height: 22px; stroke-width: 1.8; transition: transform .2s; }
+    .mob-tab.active { color: var(--p1); }
+    .mob-tab.active svg { transform: translateY(-2px); }
+    .mob-tab:active { background: #f5f3ff; }
+
+    @media (max-width: 768px) {
+      .mob-nav { display: flex; }
+      body { padding-bottom: 62px; }
+      .wa-float { bottom: 78px !important; right: 16px; }
+    }
   </style>
 </head>
 <body>
@@ -924,6 +955,26 @@
   </div>
 </footer>
 
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav" id="mob-nav">
+  <a href="#features" class="mob-tab" data-sec="features">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    <span>Features</span>
+  </a>
+  <a href="#pricing" class="mob-tab" data-sec="pricing">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    <span>Pricing</span>
+  </a>
+  <a href="#dl-sec" class="mob-tab" data-sec="dl-sec">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <span>Download</span>
+  </a>
+  <a href="#contact" class="mob-tab" data-sec="contact">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8 19.79 19.79 0 01.21 1.13 2 2 0 012.22 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 8.09a16 16 0 006 6l.66-.66a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+    <span>Contact</span>
+  </a>
+</nav>
+
 <script>
   const REPO = 'nageshkumbhar113-blip/myschool-releases'
   const fmt  = iso => new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})
@@ -975,6 +1026,22 @@
 
   document.addEventListener('DOMContentLoaded', () => { load(); if (window.lucide) lucide.createIcons() })
   window.addEventListener('load', () => { if (window.lucide) lucide.createIcons() })
+
+  // Mobile bottom nav — active tab on scroll
+  ;(function() {
+    const secIds = ['features','pricing','dl-sec','contact']
+    const tabs = document.querySelectorAll('.mob-tab')
+    function updateActive() {
+      let cur = secIds[0]
+      secIds.forEach(id => {
+        const el = document.getElementById(id)
+        if (el && window.scrollY >= el.offsetTop - 100) cur = id
+      })
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.sec === cur))
+    }
+    window.addEventListener('scroll', updateActive, {passive: true})
+    updateActive()
+  })()
 </script>
 </body>
 </html>
