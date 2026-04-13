@@ -20,8 +20,8 @@
       --shadow: 0 8px 32px rgba(124,58,237,0.12);
       --shadow-lg: 0 20px 60px rgba(124,58,237,0.18);
     }
-    html { scroll-behavior: smooth; }
-    body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; line-height: 1.6; }
+    html { scroll-behavior: smooth; overflow-x: hidden; max-width: 100%; }
+    body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; max-width: 100%; line-height: 1.6; }
     a { text-decoration: none; color: inherit; }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
@@ -377,12 +377,18 @@
       .nav-links a:not(.nav-cta) { display: none; }
 
       /* Hero */
-      #hero { padding: 90px 16px 48px; min-height: auto; }
-      .hero-title { letter-spacing: -1.5px; }
+      #hero { padding: 90px 16px 48px; min-height: auto; overflow: hidden; }
+      .hero-title { letter-spacing: -1px; }
+      .sec-title { letter-spacing: -0.5px; }
       .hero-actions { gap: 10px; }
       .btn-main { padding: 14px 24px; font-size: 15px; }
       .btn-out  { padding: 13px 20px; font-size: 14px; }
       .blob-1, .blob-2, .blob-3, .blob-4 { display: none; }
+
+      /* Prevent any wide element from overflowing */
+      .container { max-width: 100%; }
+      .pw { overflow: hidden; max-width: 100%; }
+      .impact-table-wrap { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
       /* Sections padding */
       #features, #why-offline { padding: 60px 0; }
@@ -437,19 +443,30 @@
       .pricing-cta .btn-main, .pricing-cta .btn-out { width: 100%; justify-content: center; }
     }
     @media (max-width: 520px) {
-      #hero { padding: 80px 14px 40px; min-height: auto; }
-      .container { padding: 0 14px; }
+      #hero { padding: 80px 14px 40px; min-height: auto; overflow: hidden; }
+      .container { padding: 0 14px; max-width: 100%; }
       .feat-grid { grid-template-columns: 1fr; }
       .insight-grid { grid-template-columns: 1fr; }
       .stat-item { border-right: none; border-bottom: 1px solid var(--border); padding: 14px 0; width: 100%; }
       .dl-meta { gap: 14px; }
-      .sec-title { letter-spacing: -1px; }
-      .price-main { font-size: 36px; }
-      .ct-ph { font-size: 24px; }
+      .hero-title { font-size: clamp(32px, 9vw, 52px); letter-spacing: 0px; }
+      .sec-title { font-size: clamp(22px, 6vw, 32px); letter-spacing: 0px; }
+      .price-main { font-size: 32px; letter-spacing: -0.5px; }
+      .ct-ph { font-size: 24px; letter-spacing: -0.5px; }
       .hero-actions { flex-direction: column; align-items: center; }
       .btn-main, .btn-out { width: 100%; justify-content: center; }
       .why-col { padding: 18px 14px; }
       .feat-card { padding: 20px 16px; }
+      /* Ensure nothing escapes viewport */
+      * { max-width: 100%; word-break: break-word; }
+      img, video, iframe, table { max-width: 100%; }
+      .impact-table { min-width: unset; width: 100%; }
+      .impact-table th, .impact-table td { padding: 10px 8px; font-size: 13px; }
+      .app-ui { height: 260px; }
+      .pw { border-radius: 12px; }
+      .why-vs-strip { padding: 16px 14px; }
+      .why-vs-strip p { font-size: 14px; }
+      .save-box .amt { font-size: 24px; }
     }
   </style>
 </head>
